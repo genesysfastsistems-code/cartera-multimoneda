@@ -155,6 +155,12 @@ dialog form{padding:22px 24px}
 .plan{white-space:nowrap;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef2f7;color:#334155;letter-spacing:.02em}
 .plan.UNICO{background:#ede9fe;color:#5b21b6}.plan.ANUAL{background:#e6effc;color:var(--pag)}.plan.MENSUAL{background:#e3f4ee;color:var(--ok)}.plan.PRUEBA{background:#fdf2e2;color:var(--warn)}
 .inrow{display:flex;gap:8px}.inrow input{flex:1}
+.brand .logo.img{background:#fff;padding:3px}.brand .logo img{width:100%;height:100%;object-fit:contain;border-radius:7px}
+.logoed{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.logobox{width:180px;height:90px;border:1px dashed #c5cfdd;border-radius:10px;display:grid;place-items:center;background:#fafbfd;color:var(--mut);font-size:13px;overflow:hidden}
+.logobox img{max-width:100%;max-height:100%;object-fit:contain}
+input.chg{border-color:var(--warn);background:#fffaf0}
+.savebar{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:#fbfcfe;flex-wrap:wrap}
 #printArea{display:none}
 @media print{
   @page{size:A4;margin:12mm}
@@ -164,7 +170,7 @@ dialog form{padding:22px 24px}
   .rec{border:1px solid #000;padding:14px 16px;margin-bottom:10px;page-break-inside:avoid;position:relative}
   .rec h2{font-size:16px}.rec table{font-size:12px}.rec th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .rec th,.rec td{border-bottom:1px solid #bbb;padding:5px 6px;color:#000}
-  .rhead{display:flex;justify-content:space-between;gap:12px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:8px}
+  .rhead{display:flex;justify-content:space-between;gap:12px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:8px}.rlogo{display:flex;gap:12px;align-items:center}.rlogo img{max-height:52px;max-width:140px;object-fit:contain}
   .firmas{display:flex;gap:40px;margin-top:34px}.firmas div{flex:1;border-top:1px solid #000;text-align:center;padding-top:4px;font-size:11px}
   .cut{border-top:1px dashed #000;margin:12px 0;text-align:center;font-size:10px}
   .wm{position:absolute;inset:0;display:grid;place-items:center;font-size:64px;font-weight:700;color:rgb(192 38 45/.18);transform:rotate(-18deg);pointer-events:none}
@@ -276,7 +282,8 @@ dialog form{padding:22px 24px}
     <section data-v="cotizaciones" class="hide">
       <div class="top"><div><h1>Cotizaciones</h1><p class="mut">Guaraníes por unidad. Se usan para sugerir la tasa en los cruces.</p></div></div>
       <div class="grid2">
-        <div class="card"><div class="chead"><h2>Tasas vigentes</h2><span class="mut" id="cotPerm"></span></div><div class="scroll"><table id="tCot"></table></div></div>
+        <div class="card"><div class="chead"><h2>Tasas vigentes</h2><span class="mut" id="cotPerm"></span></div><div class="scroll"><table id="tCot"></table></div>
+          <div class="savebar" id="cotBar"><span class="mut" id="cotCambios">Sin cambios</span><button class="pri" id="btnCotG">Guardar todo</button></div></div>
         <div class="card"><div class="chead"><h2>Calculadora</h2></div><div class="pad">
           <div class="two"><div><label for="kO">Entrega el cliente</label><select id="kO"></select></div><div><label for="kD">Recibe el cliente</label><select id="kD"></select></div></div>
           <label for="kM">Monto</label><input id="kM" inputmode="decimal" placeholder="0">
@@ -308,6 +315,11 @@ dialog form{padding:22px 24px}
     <section data-v="ajustes" class="hide">
       <div class="top"><div><h1>Datos de la casa</h1><p class="mut">Aparecen en el encabezado de recibos y extractos.</p></div></div>
       <form class="card pad" id="fCfg" style="max-width:640px">
+        <label>Logo de la empresa</label>
+        <div class="logoed"><div class="logobox" id="gLogoPrev">Sin logo</div>
+          <div><div class="acts"><label class="btn" for="gLogoFile" style="margin:0;font-size:14px">Elegir imagen</label><button type="button" class="sm danger" id="gLogoDel">Quitar</button></div>
+          <p class="mut" style="margin:8px 0 0">PNG, JPG o WEBP. Se ajusta solo al tamaño correcto.<br>Aparece en el menú, los recibos y los extractos.</p></div>
+          <input type="file" id="gLogoFile" accept="image/png,image/jpeg,image/webp" class="hide"></div>
         <label for="gNom">Nombre comercial</label><input id="gNom" required maxlength="120">
         <div class="two"><div><label for="gRuc">RUC</label><input id="gRuc" maxlength="30"></div><div><label for="gTel">Teléfono</label><input id="gTel" maxlength="40"></div></div>
         <label for="gDir">Dirección</label><input id="gDir" maxlength="200">
@@ -378,6 +390,7 @@ const round = (n, c) => { const f = 10 ** mon(c).decimales; return Math.round(n 
 const nRec = id => 'R-' + String(id).padStart(6, '0');
 const esSup = () => perfil && perfil.rol !== 'CAJERO';
 const esAdm = () => perfil && perfil.rol === 'ADMIN';
+const usr = e => String(e || '').replace('@cmm.local', '');
 const iniciales = s => String(s || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 function parseNum(s, c) {
   s = String(s || '').trim().replace(/\s/g, '');
@@ -428,10 +441,15 @@ async function cargarBase() {
   monedas = ordenar(m);
   cotiz = Object.fromEntries(c.map(r => [r.moneda_codigo, r]));
   if (k[0]) casa = k[0];
-  $('#casaNom').textContent = casa.nombre; $('#logoTx').textContent = iniciales(casa.nombre);
+  $('#casaNom').textContent = casa.nombre; pintarLogo();
 }
 let rutasAct = RUTAS;
 const esDev = () => perfil && perfil.rol === 'DEV';
+function pintarLogo() {
+  const l = $('#logoTx');
+  if (casa.logo) { l.classList.add('img'); l.innerHTML = `<img src="${esc(casa.logo)}" alt="">`; }
+  else { l.classList.remove('img'); l.textContent = iniciales(casa.nombre); }
+}
 async function entrar() {
   try {
     perfil = (await q(sb.rpc('api_mi_perfil')))[0];
@@ -440,7 +458,7 @@ async function entrar() {
     if (!esDev()) await cargarBase();
   } catch (er) { toast(errMsg(er), true); await sb.auth.signOut(); return verLogin(); }
   $('#meNom').textContent = perfil.nombre; $('#meRol').textContent = esDev() ? 'Desarrollador' : (ROLES[perfil.rol] || perfil.rol); $('#meAv').textContent = iniciales(perfil.nombre);
-  if (esDev()) { casa = {nombre: 'Panel desarrollador'}; $('#casaNom').textContent = 'Panel desarrollador'; $('#logoTx').textContent = 'DV'; }
+  if (esDev()) { casa = {nombre: 'Panel desarrollador'}; $('#casaNom').textContent = 'Panel desarrollador'; $('#logoTx').classList.remove('img'); $('#logoTx').textContent = 'DV'; }
   rutasAct = esDev() ? RUTAS_DEV : RUTAS.filter(r => !r.admin || esAdm());
   $('#menu').innerHTML = rutasAct.map(r => `<a href="#${r.id}" data-r="${r.id}">${ico(r.ico || r.id)}<span>${r.t}</span></a>`).join('');
   const b = $('#banner'), dr = perfil.dias_restantes;
@@ -515,7 +533,7 @@ function tablaOps(ops, conCliente) {
     <td class="nw"><b class="tx">${nRec(o.id)}</b>${o.tipo === 'ANULACION' ? ' <span class="badge y">anulación</span>' : o.tipo === 'ARBITRAJE' ? ' <span class="badge b">cruce</span>' : ''}${o.anulada ? ' <span class="badge r">anulado</span>' : ''}</td>
     <td class="mut nw">${esc(fecha(o.fecha))}</td>${conCliente ? `<td><a href="#clientes" data-cli="${Number(o.cliente_id)}">${esc(o.nombre_completo)}</a></td>` : ''}
     <td>${(o.movimientos || []).map(m => `<div class="num tx ${cls(m.importe)}" style="text-align:left">${esc(fmt(m.importe, m.moneda, true))} <span class="mut">${esc(tipoTx(m.tipo))}</span></div>`).join('')}</td>
-    <td class="mut">${esc(o.usuario_registro)}</td><td class="num"><button class="sm" data-rec="${Number(o.id)}">Recibo</button></td></tr>`).join('') + '</tbody>';
+    <td class="mut">${esc(usr(o.usuario_registro))}</td><td class="num"><button class="sm" data-rec="${Number(o.id)}">Recibo</button></td></tr>`).join('') + '</tbody>';
 }
 document.addEventListener('click', e => {
   const r = e.target.closest('[data-rec]'); if (r) { e.preventDefault(); recibo(Number(r.dataset.rec)); return; }
@@ -587,7 +605,7 @@ async function extracto() {
       (extrRows.length ? extrRows.map(r => `<tr class="${r.anulado ? 'anul' : ''}"><td class="mut nw">${esc(fecha(r.fecha_movimiento))}</td><td class="nw"><b class="tx">${nRec(r.operacion_id)}</b>${r.anulado ? ' <span class="badge r">anulado</span>' : ''}</td>
         <td><span class="tx">${esc(tipoTx(r.tipo_operacion))}</span>${r.tasa_cambio ? `<div class="mut">tasa ${esc(fmtT(r.tasa_cambio))}</div>` : ''}</td>
         <td class="num ${cls(r.importe)}"><b class="tx">${esc(fmt(r.importe, monSel, true))}</b></td><td class="num">${esc(fmt(r.saldo_nuevo, monSel))}</td>
-        <td>${esc(r.metodo_pago)}${r.comprobante_ref ? `<div class="mut">${esc(r.comprobante_ref)}</div>` : ''}</td><td class="tx">${esc(r.concepto)}</td><td class="mut">${esc(r.usuario_registro)}</td>
+        <td>${esc(r.metodo_pago)}${r.comprobante_ref ? `<div class="mut">${esc(r.comprobante_ref)}</div>` : ''}</td><td class="tx">${esc(r.concepto)}</td><td class="mut">${esc(usr(r.usuario_registro))}</td>
         <td class="num"><button class="sm" data-rec="${Number(r.operacion_id)}">Recibo</button>${esSup() && !r.anulado && !r.tipo_operacion.startsWith('ANULACION') ? ` <button class="sm danger" data-an="${Number(r.operacion_id)}">Anular</button>` : ''}</td></tr>`).join('')
        : '<tr><td colspan="9" class="empty">Sin movimientos en este período.</td></tr>') + '</tbody>';
     $('#tEx').querySelectorAll('[data-an]').forEach(b => b.onclick = () => dlgAnular(Number(b.dataset.an)));
@@ -716,7 +734,7 @@ function dlgCliente(c) {
 }
 
 // ===== RECIBOS E IMPRESIÓN =====
-const encabezado = () => `<div><h2>${esc(casa.nombre)}</h2><div>${casa.ruc ? 'RUC ' + esc(casa.ruc) : ''}${casa.direccion ? ' · ' + esc(casa.direccion) : ''}${casa.telefono ? ' · Tel. ' + esc(casa.telefono) : ''}</div></div>`;
+const encabezado = () => `<div class="rlogo">${casa.logo ? `<img src="${esc(casa.logo)}" alt="">` : ''}<div><h2>${esc(casa.nombre)}</h2><div>${casa.ruc ? 'RUC ' + esc(casa.ruc) : ''}${casa.direccion ? ' · ' + esc(casa.direccion) : ''}${casa.telefono ? ' · Tel. ' + esc(casa.telefono) : ''}</div></div></div>`;
 function imprimir(html) {
   $('#printArea').innerHTML = html;
   setTimeout(() => { try { print(); } catch { toast('No se pudo abrir la impresión', true); } }, 50);
@@ -728,7 +746,7 @@ async function recibo(id) {
     const titulo = o.tipo === 'ANULACION' ? 'COMPROBANTE DE ANULACIÓN' : o.tipo === 'ARBITRAJE' ? 'COMPROBANTE DE CRUCE DE MONEDA' : 'COMPROBANTE DE OPERACIÓN';
     const cuerpo = copia => `<div class="rec">${o.anulada ? '<div class="wm">ANULADO</div>' : ''}
       <div class="rhead">${encabezado()}<div style="text-align:right"><b>${titulo}</b><div style="font-size:18px;font-weight:700">${nRec(o.id)}</div><div>${esc(fecha(o.fecha))}</div></div></div>
-      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px"><div><b>Cliente:</b> ${esc(o.nombre_completo)}<br><b>${o.tipo_persona === 'JURIDICA' ? 'RUC' : 'Documento'}:</b> ${esc(o.documento)}</div><div style="text-align:right"><b>${copia}</b><br>Atendió: ${esc(o.usuario_registro)}</div></div>
+      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px"><div><b>Cliente:</b> ${esc(o.nombre_completo)}<br><b>${o.tipo_persona === 'JURIDICA' ? 'RUC' : 'Documento'}:</b> ${esc(o.documento)}</div><div style="text-align:right"><b>${copia}</b><br>Atendió: ${esc(usr(o.usuario_registro))}</div></div>
       <table><thead><tr><th>Concepto</th><th>Moneda</th><th>Método</th><th style="text-align:right">Importe</th><th style="text-align:right">Saldo resultante</th></tr></thead><tbody>
       ${(o.movimientos || []).map(m => `<tr><td>${esc(tipoTx(m.tipo))}${m.tasa ? ' (tasa ' + esc(fmtT(m.tasa)) + ')' : ''}${m.comprobante ? ' · Ref. ' + esc(m.comprobante) : ''}</td><td>${esc(m.moneda)}</td><td>${esc(m.metodo)}</td><td style="text-align:right">${esc(fmt(m.importe, m.moneda, true))}</td><td style="text-align:right">${esc(fmt(m.saldo, m.moneda))}</td></tr>`).join('')}
       </tbody></table><p><b>Detalle:</b> ${esc(o.concepto)}</p>
@@ -761,25 +779,53 @@ async function verCotiz() {
     const [act, hist] = await Promise.all([q(sb.from('v_cotizacion_actual').select('*')), q(sb.from('cotizaciones').select('*').order('id', {ascending:false}).limit(30))]);
     cotiz = Object.fromEntries(act.map(r => [r.moneda_codigo, r]));
     const ed = esSup();
-    $('#cotPerm').textContent = ed ? '' : 'Solo supervisores pueden modificar';
-    $('#tCot').innerHTML = `<thead><tr><th>Moneda</th><th class="num">Compra (Gs.)</th><th class="num">Venta (Gs.)</th><th>Actualizado</th>${ed ? '<th></th>' : ''}</tr></thead><tbody>` +
+    $('#cotPerm').textContent = ed ? 'Modifique las tasas y guarde todo junto' : 'Solo supervisores pueden modificar';
+    $('#cotBar').classList.toggle('hide', !ed);
+    $('#tCot').innerHTML = `<thead><tr><th>Moneda</th><th class="num">Compra (Gs.)</th><th class="num">Venta (Gs.)</th><th>Actualizado</th></tr></thead><tbody>` +
       monedas.filter(m => m.codigo !== 'PYG').map(m => { const c = cotiz[m.codigo]; return `<tr><td><div style="display:flex;gap:10px;align-items:center"><span class="cur">${esc(m.codigo)}</span>${esc(m.nombre)}</div></td>
         ${ed ? `<td><input data-cc="${esc(m.codigo)}" inputmode="decimal" value="${c ? esc(fmtT(c.compra)) : ''}" style="text-align:right;max-width:140px;margin-left:auto;display:block"></td><td><input data-cv="${esc(m.codigo)}" inputmode="decimal" value="${c ? esc(fmtT(c.venta)) : ''}" style="text-align:right;max-width:140px;margin-left:auto;display:block"></td>`
              : `<td class="num">${c ? esc(fmtGs(c.compra)) : '—'}</td><td class="num">${c ? esc(fmtGs(c.venta)) : '—'}</td>`}
-        <td class="mut">${c ? esc(fecha(c.fecha)) + '<br>' + esc(c.usuario_registro) : 'Sin cargar'}</td>${ed ? `<td><button class="sm pri" data-gc="${esc(m.codigo)}">Guardar</button></td>` : ''}</tr>`; }).join('') + '</tbody>';
-    $('#tCot').querySelectorAll('[data-gc]').forEach(b => b.onclick = async () => {
-      const k = b.dataset.gc, cp = parseNum(document.querySelector(`[data-cc="${k}"]`).value), vt = parseNum(document.querySelector(`[data-cv="${k}"]`).value);
-      if (!(cp > 0) || !(vt > 0)) return toast('Compra y venta deben ser mayores a cero', true);
-      if (vt < cp) return toast('La venta no puede ser menor que la compra', true);
-      b.disabled = true;
-      try { await q(sb.rpc('api_set_cotizacion', {p_moneda: k, p_compra: cp, p_venta: vt})); toast('Cotización ' + k + ' actualizada'); verCotiz(); } catch (er) { toast(errMsg(er), true); b.disabled = false; }
-    });
+        <td class="mut">${c ? esc(fecha(c.fecha)) + '<br>' + esc(usr(c.usuario_registro)) : 'Sin cargar'}</td></tr>`; }).join('') + '</tbody>';
+    marcarCambios();
     $('#tCotH').innerHTML = `<thead><tr><th>Fecha</th><th>Moneda</th><th class="num">Compra</th><th class="num">Venta</th><th>Usuario</th></tr></thead><tbody>` +
-      (hist.length ? hist.map(r => `<tr><td class="mut">${esc(fecha(r.fecha))}</td><td><b>${esc(r.moneda_codigo)}</b></td><td class="num">${esc(fmtGs(r.compra))}</td><td class="num">${esc(fmtGs(r.venta))}</td><td class="mut">${esc(r.usuario_registro)}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">Sin cotizaciones cargadas.</td></tr>') + '</tbody>';
+      (hist.length ? hist.map(r => `<tr><td class="mut">${esc(fecha(r.fecha))}</td><td><b>${esc(r.moneda_codigo)}</b></td><td class="num">${esc(fmtGs(r.compra))}</td><td class="num">${esc(fmtGs(r.venta))}</td><td class="mut">${esc(usr(r.usuario_registro))}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">Sin cotizaciones cargadas.</td></tr>') + '</tbody>';
     if (!$('#kO').options.length) { $('#kO').innerHTML = opcMon('USD'); $('#kD').innerHTML = opcMon('PYG'); }
     calc();
   } catch (er) { toast(errMsg(er), true); }
 }
+// Guardado masivo de cotizaciones
+function cambiosCot() {
+  const items = [], errores = [];
+  monedas.filter(m => m.codigo !== 'PYG').forEach(m => {
+    const ic = document.querySelector(`[data-cc="${m.codigo}"]`), iv = document.querySelector(`[data-cv="${m.codigo}"]`);
+    if (!ic || !iv) return;
+    const sc = ic.value.trim(), sv = iv.value.trim(), act = cotiz[m.codigo];
+    const cp = parseNum(sc), vt = parseNum(sv);
+    const dif = !act ? (sc !== '' || sv !== '') : (cp !== Number(act.compra) || vt !== Number(act.venta));
+    ic.classList.toggle('chg', dif); iv.classList.toggle('chg', dif);
+    if (!dif) return;
+    if (sc === '' || sv === '') return errores.push(`${m.codigo}: complete compra y venta`);
+    if (!(cp > 0) || !(vt > 0)) return errores.push(`${m.codigo}: valores inválidos`);
+    if (vt < cp) return errores.push(`${m.codigo}: la venta no puede ser menor que la compra`);
+    items.push({moneda: m.codigo, compra: cp, venta: vt});
+  });
+  return {items, errores};
+}
+function marcarCambios() {
+  const {items, errores} = cambiosCot(), n = items.length + errores.length;
+  $('#cotCambios').textContent = n ? `${n} moneda${n === 1 ? '' : 's'} con cambios sin guardar` : 'Sin cambios';
+  $('#cotCambios').style.color = n ? 'var(--warn)' : '';
+}
+$('#tCot').addEventListener('input', marcarCambios);
+$('#tCot').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input')) { e.preventDefault(); $('#btnCotG').click(); } });
+$('#btnCotG').onclick = async () => {
+  const {items, errores} = cambiosCot();
+  if (errores.length) return toast(errores.join(' · '), true);
+  if (!items.length) return toast('No hay cambios para guardar');
+  const b = $('#btnCotG'); b.disabled = true;
+  try { const n = await q(sb.rpc('api_set_cotizaciones', {p_items: items})); toast(`${n} cotizaci${n === 1 ? 'ón guardada' : 'ones guardadas'}: ${items.map(i => i.moneda).join(', ')}`); await verCotiz(); }
+  catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
+};
 function calc() {
   const o = $('#kO').value, d = $('#kD').value, m = parseNum($('#kM').value, o), f = factor(o, d);
   if (o === d) return $('#kR').textContent = 'Elija monedas distintas.';
@@ -856,10 +902,45 @@ function dlgUsuario(u) {
 }
 
 // ===== AJUSTES =====
-function verAjustes() { $('#gNom').value = casa.nombre || ''; $('#gRuc').value = casa.ruc || ''; $('#gTel').value = casa.telefono || ''; $('#gDir').value = casa.direccion || ''; $('#gPie').value = casa.pie_recibo || ''; }
+let logoNuevo;
+function pintarLogoPrev(src) { $('#gLogoPrev').innerHTML = src ? `<img src="${esc(src)}" alt="Logo">` : 'Sin logo'; $('#gLogoDel').disabled = !src; }
+function redimensionar(file) {
+  return new Promise((res, rej) => {
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return rej(new Error('Use una imagen PNG, JPG o WEBP'));
+    if (file.size > 8e6) return rej(new Error('La imagen supera 8 MB'));
+    const fr = new FileReader();
+    fr.onerror = () => rej(new Error('No se pudo leer la imagen'));
+    fr.onload = () => {
+      const im = new Image();
+      im.onerror = () => rej(new Error('Imagen dañada o no compatible'));
+      im.onload = () => {
+        const k = Math.min(1, 480 / im.width, 240 / im.height), w = Math.max(1, Math.round(im.width * k)), h = Math.max(1, Math.round(im.height * k));
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        const cx = cv.getContext('2d'); cx.drawImage(im, 0, 0, w, h);
+        let out = file.type === 'image/jpeg' ? cv.toDataURL('image/jpeg', .9) : cv.toDataURL('image/png');
+        if (out.length > 350000) { cx.globalCompositeOperation = 'destination-over'; cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h); out = cv.toDataURL('image/jpeg', .85); }
+        if (out.length > 390000) return rej(new Error('La imagen es demasiado compleja; pruebe con una más simple'));
+        res(out);
+      };
+      im.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+$('#gLogoFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try { logoNuevo = await redimensionar(f); pintarLogoPrev(logoNuevo); toast('Logo listo. Presione Guardar para aplicarlo.'); } catch (er) { toast(errMsg(er), true); }
+};
+$('#gLogoDel').onclick = () => { logoNuevo = null; pintarLogoPrev(null); toast('Presione Guardar para quitar el logo.'); };
+function verAjustes() { logoNuevo = undefined; pintarLogoPrev(casa.logo); $('#gNom').value = casa.nombre || ''; $('#gRuc').value = casa.ruc || ''; $('#gTel').value = casa.telefono || ''; $('#gDir').value = casa.direccion || ''; $('#gPie').value = casa.pie_recibo || ''; }
 $('#fCfg').onsubmit = async e => {
   e.preventDefault(); const b = $('#btnCfgG'); b.disabled = true;
-  try { await q(sb.rpc('api_set_config', {p_nombre: $('#gNom').value, p_ruc: $('#gRuc').value, p_direccion: $('#gDir').value, p_telefono: $('#gTel').value, p_pie: $('#gPie').value})); await cargarBase(); toast('Datos guardados'); }
+  try {
+    await q(sb.rpc('api_set_config', {p_nombre: $('#gNom').value, p_ruc: $('#gRuc').value, p_direccion: $('#gDir').value, p_telefono: $('#gTel').value, p_pie: $('#gPie').value}));
+    if (logoNuevo !== undefined) await q(sb.rpc('api_set_logo', {p_logo: logoNuevo}));
+    await cargarBase(); verAjustes(); toast('Datos guardados');
+  }
   catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
 };
 
