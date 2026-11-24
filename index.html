@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
 <style>
 :root{--side:#0b1a30;--side2:#132a4a;--side-ink:#c9d4e5;--bg:#f1f4f9;--card:#fff;--ink:#0f172a;--mut:#64748b;--line:#e3e8ef;
 --acc:#1d5fd1;--acc2:#e8f0fc;--pag:#0b5cad;--cob:#c0262d;--ok:#13795b;--warn:#b45309;--r:12px;--sh:0 1px 2px rgb(15 23 42/.06),0 4px 16px rgb(15 23 42/.05)}
@@ -67,7 +68,8 @@ nav.menu a.on{background:var(--acc);color:#fff}
 .me{border-top:1px solid #1f3558;padding:14px 8px 0;display:flex;align-items:center;gap:10px}
 .me .av{width:34px;height:34px;border-radius:50%;background:#233d63;color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
 .me b{display:block;color:#fff;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.me span{font-size:12px}
-.me button{margin-left:auto;background:transparent;border-color:#2a4269;color:var(--side-ink)}
+.me{flex-wrap:wrap}.me .btns{display:flex;gap:6px;width:100%;margin-top:10px}.me .btns button{flex:1}
+.me button{background:transparent;border-color:#2a4269;color:var(--side-ink)}
 main{padding:26px clamp(16px,3vw,36px) 60px;max-width:1400px;width:100%}
 .top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
 .top .mut{margin-top:4px}
@@ -77,7 +79,7 @@ main{padding:26px clamp(16px,3vw,36px) 60px;max-width:1400px;width:100%}
   .brand{padding:0 6px 0 0}.brand span{display:none}
   nav.menu{flex-direction:row;overflow-x:auto;order:3;flex-basis:100%;gap:4px;scrollbar-width:none}
   nav.menu a{flex:none;padding:8px 10px}
-  .me{border:0;padding:0;margin-left:auto}.me>div{display:none}
+  .me{border:0;padding:0;margin-left:auto;flex-wrap:nowrap}.me>div:not(.av){display:none}.me .btns{width:auto;margin:0}
 }
 
 /* KPI */
@@ -144,6 +146,15 @@ dialog form{padding:22px 24px}
 @media(prefers-reduced-motion:no-preference){#toast{animation:up .2s ease}@keyframes up{from{transform:translateY(8px);opacity:0}}}
 
 /* print */
+#banner{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 16px;border-radius:10px;background:#fdf2e2;color:#7c3d06;border:1px solid #f6d9a8;margin-bottom:18px;font-size:14px}
+#banner.r{background:#fdecec;color:#8f1d22;border-color:#f5c2c4}
+#vLock{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(120% 90% at 0% 0%,#1d3a66 0%,var(--side) 60%)}
+#vLock .card{max-width:460px;padding:32px;text-align:center}
+.lockic{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:#fdecec;color:var(--cob);margin:0 auto 16px}.lockic svg{width:30px;height:30px}
+.cred{font:600 15px ui-monospace,Menlo,Consolas,monospace;background:#f4f7fb;border:1px solid var(--line);border-radius:10px;padding:14px;text-align:left;line-height:1.9;word-break:break-all}
+.plan{white-space:nowrap;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef2f7;color:#334155;letter-spacing:.02em}
+.plan.UNICO{background:#ede9fe;color:#5b21b6}.plan.ANUAL{background:#e6effc;color:var(--pag)}.plan.MENSUAL{background:#e3f4ee;color:var(--ok)}.plan.PRUEBA{background:#fdf2e2;color:var(--warn)}
+.inrow{display:flex;gap:8px}.inrow input{flex:1}
 #printArea{display:none}
 @media print{
   @page{size:A4;margin:12mm}
@@ -177,27 +188,67 @@ dialog form{padding:22px 24px}
   <div class="lform">
     <form id="fLogin">
       <h1 style="margin-bottom:6px">Iniciar sesión</h1>
-      <p class="mut" style="margin:0 0 8px">Ingrese con su usuario de caja.</p>
-      <div id="cfgBox">
-        <div id="urlBox"><label for="cfgUrl">URL del proyecto Supabase</label><input id="cfgUrl" placeholder="https://xxxx.supabase.co" autocomplete="off"></div>
-        <label for="cfgKey">Clave anon (pública)</label><input id="cfgKey" autocomplete="off" placeholder="eyJ…">
-      </div>
-      <label for="lEmail">Email</label><input id="lEmail" type="email" autocomplete="username" required>
+      <p class="mut" style="margin:0 0 8px">Ingrese con el usuario y la contraseña que le entregaron.</p>
+      <label for="lUser">Usuario</label><input id="lUser" autocomplete="username" autocapitalize="none" spellcheck="false" required>
       <label for="lPass">Contraseña</label><input id="lPass" type="password" autocomplete="current-password" required>
       <button class="pri" id="btnLogin" style="width:100%;margin-top:20px;min-height:46px">Ingresar</button>
-      <button type="button" id="btnCfg" class="ghost sm" style="margin-top:10px">Configurar conexión</button>
+      <p class="mut hide" id="noCfg" style="color:var(--cob);margin-top:12px">Sistema sin configurar: falta la clave en config.js.</p>
     </form>
   </div>
 </section>
+
+<!-- ===== BLOQUEO ===== -->
+<section id="vLock" class="hide"><div class="card">
+  <div class="lockic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+  <h1 id="lkT">Membresía vencida</h1><p class="mut" id="lkM" style="font-size:15px"></p>
+  <div class="prev" id="lkC" style="text-align:left"></div>
+  <button class="dark" id="lkOut" style="margin-top:20px;width:100%">Cerrar sesión</button>
+</div></section>
 
 <!-- ===== APP ===== -->
 <div id="vApp" class="hide">
   <aside class="side">
     <div class="brand"><div class="logo" id="logoTx">CM</div><div><b id="casaNom">Cartera Multimoneda</b><span>Cartera multimoneda</span></div></div>
     <nav class="menu" id="menu"></nav>
-    <div class="me"><div class="av" id="meAv">?</div><div><b id="meNom"></b><span id="meRol"></span></div><button class="sm" id="btnOut" title="Cerrar sesión">Salir</button></div>
+    <div class="me"><div class="av" id="meAv">?</div><div><b id="meNom"></b><span id="meRol"></span></div><span class="btns"><button class="sm" id="btnPw" title="Cambiar mi contraseña">Mi clave</button><button class="sm" id="btnOut" title="Cerrar sesión">Salir</button></span></div>
   </aside>
   <main>
+    <div id="banner" class="hide"></div>
+    <!-- DEV: PANEL -->
+    <section data-v="dev-panel" class="hide">
+      <div class="top"><div><h1>Panel del desarrollador</h1><p class="mut">Membresías, cobros y estado de cada empresa.</p></div><button class="pri" data-nueva-emp>+ Nueva empresa</button></div>
+      <div class="stat" id="dKpi"></div>
+      <div class="grid2">
+        <div class="card"><div class="chead"><h2>Requieren atención</h2><a href="#dev-empresas" class="mut">Todas las empresas</a></div><div class="scroll"><table id="dAten"></table></div></div>
+        <div class="card"><div class="chead"><h2>Últimos cobros</h2><a href="#dev-pagos" class="mut">Ver todos</a></div><div class="scroll"><table id="dUltP"></table></div></div>
+      </div>
+    </section>
+    <!-- DEV: EMPRESAS -->
+    <section data-v="dev-empresas" class="hide">
+      <div class="top"><div><h1>Empresas</h1><p class="mut">Cada empresa tiene sus propios clientes, usuarios y datos, separados de las demás.</p></div><button class="pri" data-nueva-emp>+ Nueva empresa</button></div>
+      <div class="card"><div style="padding:12px"><input id="dQ" type="search" placeholder="Buscar empresa o usuario" aria-label="Buscar empresa"></div><div class="scroll"><table id="dEmp"></table></div></div>
+    </section>
+    <!-- DEV: PAGOS -->
+    <section data-v="dev-pagos" class="hide">
+      <div class="top"><div><h1>Cobros de membresías</h1><p class="mut">Historial de pagos registrados.</p></div><button id="dXPag">Exportar Excel</button></div>
+      <div class="stat" id="dPagTot"></div>
+      <div class="card"><div class="scroll"><table id="dPag"></table></div></div>
+    </section>
+    <!-- DEV: AJUSTES -->
+    <section data-v="dev-ajustes" class="hide">
+      <div class="top"><div><h1>Planes y soporte</h1><p class="mut">Precios sugeridos al cobrar y el contacto que ven los clientes cuando vence su membresía.</p></div></div>
+      <form class="card pad" id="fDev" style="max-width:720px">
+        <h2>Precios de los planes</h2>
+        <div class="two"><div><label for="pMon">Moneda de cobro</label><select id="pMon"><option>USD</option><option>PYG</option><option>BRL</option><option>EUR</option><option>ARS</option></select></div><div><label for="pDias">Días de prueba gratis</label><input id="pDias" type="number" min="1" max="90"></div></div>
+        <div class="two"><div><label for="pMes">Mensual</label><input id="pMes" inputmode="decimal"></div><div><label for="pAno">Anual</label><input id="pAno" inputmode="decimal"></div></div>
+        <label for="pUni">Pago único (licencia permanente)</label><input id="pUni" inputmode="decimal">
+        <h2 style="margin-top:26px">Contacto de soporte</h2>
+        <label for="sNom">Nombre</label><input id="sNom" maxlength="80">
+        <div class="two"><div><label for="sTel">Teléfono / WhatsApp</label><input id="sTel" maxlength="40"></div><div><label for="sEm">Email</label><input id="sEm" type="email" maxlength="120"></div></div>
+        <div class="dact"><button class="pri" id="btnDevG">Guardar</button></div>
+      </form>
+    </section>
+
     <!-- INICIO -->
     <section data-v="inicio">
       <div class="top"><div><h1 id="saludo">Inicio</h1><p class="mut" id="hoyTx"></p></div><button id="btnRefIni">Actualizar</button></div>
@@ -275,7 +326,7 @@ dialog form{padding:22px 24px}
 {
 // ===== CONEXIÓN =====
 const SB_URL_FIJA = 'https://izzrycecxraeevhrropu.supabase.co';
-const SB_KEY_FIJA = '';   // opcional: pegue aquí la clave anon para no pedirla en cada equipo
+const SB_KEY_FIJA = '';   // la clave se carga desde config.js (window.CMM_KEY)
 
 const ORDEN = ['USD','EUR','BRL','PYG','ARS'];
 const FUERZA = {EUR:0, USD:1, BRL:2, ARS:3, PYG:4};
@@ -305,6 +356,10 @@ const RUTAS = [
   {id:'usuarios', t:'Usuarios', admin:true}, {id:'ajustes', t:'Datos de la casa', admin:true}
 ];
 
+const RUTAS_DEV = [
+  {id:'dev-panel', t:'Panel', ico:'inicio'}, {id:'dev-empresas', t:'Empresas', ico:'clientes'},
+  {id:'dev-pagos', t:'Cobros', ico:'posicion'}, {id:'dev-ajustes', t:'Planes y soporte', ico:'ajustes'}
+];
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store = {get(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
@@ -347,61 +402,78 @@ const aGs = (n, c) => c === 'PYG' ? Number(n) : (cotiz[c] ? Number(n) * Number(c
 // ===== CONEXIÓN Y SESIÓN =====
 function conectar() {
   const cfg = store.get('cmm_cfg') || {};
-  const url = SB_URL_FIJA || cfg.url, key = SB_KEY_FIJA || cfg.key;
+  const url = SB_URL_FIJA || cfg.url, key = SB_KEY_FIJA || window.CMM_KEY || cfg.key;
   if (!url || !key) return false;
   sb = supabase.createClient(url, key, {auth:{persistSession:true}});
   return true;
 }
 function verLogin() {
-  $('#vApp').classList.add('hide'); $('#vLogin').classList.remove('hide');
-  const cfg = store.get('cmm_cfg') || {};
-  $('#cfgUrl').value = cfg.url || ''; $('#cfgKey').value = cfg.key || '';
-  $('#urlBox').classList.toggle('hide', !!SB_URL_FIJA);
-  const listo = (SB_URL_FIJA || cfg.url) && (SB_KEY_FIJA || cfg.key);
-  $('#cfgBox').classList.toggle('hide', !!listo);
-  $('#btnCfg').classList.toggle('hide', !!(SB_URL_FIJA && SB_KEY_FIJA));
+  $('#vApp').classList.add('hide'); $('#vLock').classList.add('hide'); $('#vLogin').classList.remove('hide');
+  $('#noCfg').classList.toggle('hide', !!sb || conectar());
+  setTimeout(() => $('#lUser').focus(), 50);
 }
-$('#btnCfg').onclick = () => $('#cfgBox').classList.toggle('hide');
+const emailDe = u => { u = u.trim().toLowerCase(); return u.includes('@') ? u : u + '@cmm.local'; };
 $('#fLogin').onsubmit = async e => {
   e.preventDefault(); const b = $('#btnLogin'); b.disabled = true;
   try {
-    const cfg = store.get('cmm_cfg') || {};
-    const url = SB_URL_FIJA || $('#cfgUrl').value.trim().replace(/\/+$/, '') || cfg.url;
-    const key = SB_KEY_FIJA || $('#cfgKey').value.trim() || cfg.key;
-    if (!/^https:\/\/.+/.test(url || '') || !key) throw new Error('Complete la conexión: URL y clave anon de Supabase');
-    store.set('cmm_cfg', {url, key});
-    conectar();
-    await q(sb.auth.signInWithPassword({email: $('#lEmail').value.trim(), password: $('#lPass').value}));
+    if (!sb && !conectar()) throw new Error('Sistema sin configurar: falta la clave en config.js');
+    await q(sb.auth.signInWithPassword({email: emailDe($('#lUser').value), password: $('#lPass').value}));
     $('#lPass').value = '';
     await entrar();
-  } catch (er) { toast(/Invalid login/i.test(errMsg(er)) ? 'Email o contraseña incorrectos' : errMsg(er), true); }
+  } catch (er) { toast(/Invalid login/i.test(errMsg(er)) ? 'Usuario o contraseña incorrectos' : errMsg(er), true); }
   finally { b.disabled = false; }
 };
 async function cargarBase() {
-  const [m, c, k] = await Promise.all([q(sb.from('monedas').select('*')), q(sb.from('v_cotizacion_actual').select('*')).catch(() => []), q(sb.from('config_casa').select('*')).catch(() => [])]);
+  const [m, c, k] = await Promise.all([q(sb.from('monedas').select('*')), q(sb.from('v_cotizacion_actual').select('*')).catch(() => []), q(sb.from('empresas').select('*').eq('id', perfil.empresa_id)).catch(() => [])]);
   monedas = ordenar(m);
   cotiz = Object.fromEntries(c.map(r => [r.moneda_codigo, r]));
   if (k[0]) casa = k[0];
   $('#casaNom').textContent = casa.nombre; $('#logoTx').textContent = iniciales(casa.nombre);
 }
+let rutasAct = RUTAS;
+const esDev = () => perfil && perfil.rol === 'DEV';
 async function entrar() {
-  try { perfil = (await q(sb.rpc('api_mi_perfil')))[0]; await cargarBase(); }
-  catch (er) { toast(errMsg(er), true); await sb.auth.signOut(); return verLogin(); }
-  $('#meNom').textContent = perfil.nombre; $('#meRol').textContent = ROLES[perfil.rol] || perfil.rol; $('#meAv').textContent = iniciales(perfil.nombre);
-  $('#menu').innerHTML = RUTAS.filter(r => !r.admin || esAdm()).map(r => `<a href="#${r.id}" data-r="${r.id}">${ico(r.id)}<span>${r.t}</span></a>`).join('');
-  $('#vLogin').classList.add('hide'); $('#vApp').classList.remove('hide');
-  ruta(); buscar();
+  try {
+    perfil = (await q(sb.rpc('api_mi_perfil')))[0];
+    if (!perfil) throw new Error('Usuario sin perfil');
+    if (!esDev() && perfil.estado !== 'OK') return bloquear();
+    if (!esDev()) await cargarBase();
+  } catch (er) { toast(errMsg(er), true); await sb.auth.signOut(); return verLogin(); }
+  $('#meNom').textContent = perfil.nombre; $('#meRol').textContent = esDev() ? 'Desarrollador' : (ROLES[perfil.rol] || perfil.rol); $('#meAv').textContent = iniciales(perfil.nombre);
+  if (esDev()) { casa = {nombre: 'Panel desarrollador'}; $('#casaNom').textContent = 'Panel desarrollador'; $('#logoTx').textContent = 'DV'; }
+  rutasAct = esDev() ? RUTAS_DEV : RUTAS.filter(r => !r.admin || esAdm());
+  $('#menu').innerHTML = rutasAct.map(r => `<a href="#${r.id}" data-r="${r.id}">${ico(r.ico || r.id)}<span>${r.t}</span></a>`).join('');
+  const b = $('#banner'), dr = perfil.dias_restantes;
+  if (!esDev() && dr != null && dr <= 7) {
+    b.className = dr <= 2 ? 'r' : '';
+    b.innerHTML = `<span><b>${dr <= 0 ? 'Su membresía vence hoy' : `Su membresía vence en ${Number(dr)} día${dr == 1 ? '' : 's'}`}</b> (${esc(new Date(perfil.vence + 'T12:00').toLocaleDateString('es-PY'))}). Renueve para no perder el acceso.</span><span class="mut" style="color:inherit">${esc(contactoTx())}</span>`;
+  } else b.className = 'hide';
+  $('#vLogin').classList.add('hide'); $('#vLock').classList.add('hide'); $('#vApp').classList.remove('hide');
+  ruta(); if (!esDev()) buscar();
 }
-$('#btnOut').onclick = async () => { await sb.auth.signOut(); perfil = null; cliente = null; $('#ficha').innerHTML = '<div class="card empty">Seleccione un cliente o registre uno nuevo.</div>'; verLogin(); };
+const contactoTx = () => [perfil.soporte_nombre, perfil.soporte_telefono, perfil.soporte_email].filter(Boolean).join(' · ');
+function bloquear() {
+  const susp = perfil.estado === 'SUSPENDIDA';
+  $('#lkT').textContent = susp ? 'Cuenta suspendida' : 'Membresía vencida';
+  $('#lkM').textContent = susp ? `El acceso de ${perfil.empresa_nombre || 'su empresa'} está suspendido.` : `La membresía de ${perfil.empresa_nombre || 'su empresa'} venció el ${new Date(perfil.vence + 'T12:00').toLocaleDateString('es-PY')}. Sus datos están guardados y vuelven a estar disponibles al renovar.`;
+  $('#lkC').innerHTML = `<b>Para renovar, contacte a:</b><br>${esc(perfil.soporte_nombre || 'Su proveedor')}${perfil.soporte_telefono ? '<br>Tel. / WhatsApp: ' + esc(perfil.soporte_telefono) : ''}${perfil.soporte_email ? '<br>' + esc(perfil.soporte_email) : ''}`;
+  $('#vLogin').classList.add('hide'); $('#vApp').classList.add('hide'); $('#vLock').classList.remove('hide');
+}
+$('#lkOut').onclick = async () => { await sb.auth.signOut(); perfil = null; verLogin(); };
+$('#btnPw').onclick = () => abrirDlg(`<h2>Cambiar mi contraseña</h2>
+  <label for="mp1">Nueva contraseña</label><input id="mp1" type="password" minlength="8" required autocomplete="new-password">
+  <label for="mp2">Repetir contraseña</label><input id="mp2" type="password" minlength="8" required autocomplete="new-password">`,
+  async () => { if ($('#mp1').value !== $('#mp2').value) throw new Error('Las contraseñas no coinciden'); await q(sb.rpc('api_cambiar_mi_password', {p_password: $('#mp1').value})); toast('Contraseña actualizada'); }, null, 'Guardar');
+$('#btnOut').onclick = async () => { await sb.auth.signOut(); perfil = null; cliente = null; dCfg = null; $('#ficha').innerHTML = '<div class="card empty">Seleccione un cliente o registre uno nuevo.</div>'; verLogin(); };
 
 // ===== RUTAS =====
 function ruta() {
   let r = location.hash.slice(1);
-  const def = RUTAS.find(x => x.id === r && (!x.admin || esAdm()));
-  if (!def) r = 'inicio';
+  if (!rutasAct.find(x => x.id === r)) r = rutasAct[0].id;
   document.querySelectorAll('#menu a').forEach(a => a.classList.toggle('on', a.dataset.r === r));
   document.querySelectorAll('main>section').forEach(s => s.classList.toggle('hide', s.dataset.v !== r));
-  ({inicio: verInicio, cotizaciones: verCotiz, posicion: verPosicion, auditoria: verAuditoria, usuarios: verUsuarios, ajustes: verAjustes}[r] || (() => {}))();
+  ({inicio: verInicio, cotizaciones: verCotiz, posicion: verPosicion, auditoria: verAuditoria, usuarios: verUsuarios, ajustes: verAjustes,
+    'dev-panel': devPanel, 'dev-empresas': devEmpresas, 'dev-pagos': devPagos, 'dev-ajustes': devAjustes}[r] || (() => {}))();
   scrollTo(0, 0);
 }
 addEventListener('hashchange', () => perfil && ruta());
@@ -756,8 +828,10 @@ async function verAuditoria() {
 async function verUsuarios() {
   try {
     const u = await q(sb.rpc('api_listar_usuarios'));
-    $('#tUsr').innerHTML = `<thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Último ingreso</th><th></th></tr></thead><tbody>` + u.map(x => `<tr>
-      <td><div style="display:flex;gap:10px;align-items:center"><div class="cur" style="border-radius:50%;background:#233d63">${esc(iniciales(x.nombre))}</div><div><b>${esc(x.nombre)}</b><div class="mut">${esc(x.email)}</div></div></div></td>
+    const act = u.filter(x => x.activo).length, mx = u[0] ? u[0].max_usuarios : 0;
+    $('#btnNuevoU').disabled = act >= mx; $('#btnNuevoU').title = act >= mx ? 'Alcanzó el límite de su plan' : '';
+    $('#tUsr').innerHTML = `<caption style="caption-side:bottom;text-align:left;padding:12px 16px" class="mut">${act} de ${mx} usuarios activos incluidos en su plan.</caption><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Último ingreso</th><th></th></tr></thead><tbody>` + u.map(x => `<tr>
+      <td><div style="display:flex;gap:10px;align-items:center"><div class="cur" style="border-radius:50%;background:#233d63">${esc(iniciales(x.nombre))}</div><div><b>${esc(x.nombre)}</b><div class="mut">${esc(x.usuario)}</div></div></div></td>
       <td><span class="badge ${x.rol === 'ADMIN' ? 'b' : x.rol === 'SUPERVISOR' ? 'y' : ''}">${esc(ROLES[x.rol] || x.rol)}</span></td>
       <td>${x.activo ? '<span class="badge g">activo</span>' : '<span class="badge r">inactivo</span>'}${x.tiene_cuenta ? '' : ' <span class="badge y">sin cuenta</span>'}</td>
       <td class="mut">${x.ultimo_ingreso ? esc(fecha(x.ultimo_ingreso)) : 'Nunca'}</td>
@@ -769,13 +843,13 @@ $('#btnNuevoU').onclick = () => dlgUsuario(null);
 function dlgUsuario(u) {
   const nuevo = !u; u = u || {rol:'CAJERO', activo:true};
   abrirDlg(`<h2>${nuevo ? 'Nuevo usuario' : 'Editar usuario'}</h2>
-    <label for="uEm">Email</label><input id="uEm" type="email" required value="${esc(u.email)}" ${nuevo ? '' : 'readonly'} autocomplete="off">
+    <label for="uEm">Nombre de usuario</label><input id="uEm" required pattern="[a-z0-9][a-z0-9._\\-]{2,39}" title="3 a 40 letras minúsculas, números, punto o guion" value="${esc(u.usuario)}" ${nuevo ? '' : 'readonly'} autocomplete="off" autocapitalize="none" placeholder="ej. juan.caja">
     <div class="two"><div><label for="uNom">Nombre</label><input id="uNom" required maxlength="80" value="${esc(u.nombre)}"></div>
     <div><label for="uRol">Rol</label><select id="uRol">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${u.rol === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
     <label for="uPw">${nuevo ? 'Contraseña inicial' : 'Nueva contraseña (opcional)'}</label><input id="uPw" type="password" minlength="8" ${nuevo ? 'required' : ''} autocomplete="new-password" placeholder="Mínimo 8 caracteres">
     ${nuevo ? '' : `<label class="chk" style="margin-top:14px"><input type="checkbox" id="uAct" ${u.activo ? 'checked' : ''}> Usuario activo</label>`}`,
   async () => {
-    if (nuevo) await q(sb.rpc('api_crear_usuario', {p_email: $('#uEm').value, p_nombre: $('#uNom').value, p_rol: $('#uRol').value, p_password: $('#uPw').value}));
+    if (nuevo) await q(sb.rpc('api_crear_usuario', {p_usuario: $('#uEm').value.trim().toLowerCase(), p_nombre: $('#uNom').value, p_rol: $('#uRol').value, p_password: $('#uPw').value}));
     else await q(sb.rpc('api_actualizar_usuario', {p_email: u.email, p_nombre: $('#uNom').value, p_rol: $('#uRol').value, p_activo: $('#uAct').checked, p_password: $('#uPw').value || null}));
     toast(nuevo ? 'Usuario creado' : 'Usuario actualizado'); verUsuarios();
   }, null, nuevo ? 'Crear usuario' : 'Guardar');
@@ -786,6 +860,181 @@ function verAjustes() { $('#gNom').value = casa.nombre || ''; $('#gRuc').value =
 $('#fCfg').onsubmit = async e => {
   e.preventDefault(); const b = $('#btnCfgG'); b.disabled = true;
   try { await q(sb.rpc('api_set_config', {p_nombre: $('#gNom').value, p_ruc: $('#gRuc').value, p_direccion: $('#gDir').value, p_telefono: $('#gTel').value, p_pie: $('#gPie').value})); await cargarBase(); toast('Datos guardados'); }
+  catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
+};
+
+// ===== DESARROLLADOR =====
+let dEmps = [], dPagos = [], dCfg = null;
+const PLANES = {PRUEBA:'Prueba', MENSUAL:'Mensual', ANUAL:'Anual', UNICO:'Pago único'};
+const EST = {ACTIVA:['activa','g'], POR_VENCER:['por vencer','y'], VENCIDA:['vencida','r'], SUSPENDIDA:['suspendida','r']};
+const fD = d => d ? new Date(d + 'T12:00').toLocaleDateString('es-PY') : '—';
+const fMon = (n, m) => Number(n).toLocaleString('es-PY', {minimumFractionDigits: m === 'PYG' ? 0 : 2, maximumFractionDigits: m === 'PYG' ? 0 : 2}) + ' ' + m;
+const venceTx = e => e.plan === 'UNICO' ? '<span class="mut">Permanente</span>' : `${esc(fD(e.vence))}<div class="mut">${e.dias_restantes < 0 ? `hace ${-e.dias_restantes} días` : e.dias_restantes === 0 ? 'hoy' : `en ${e.dias_restantes} días`}</div>`;
+const genPass = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const a = new Uint32Array(10); crypto.getRandomValues(a); return [...a].map(x => c[x % c.length]).join(''); };
+const precio = plan => !dCfg ? 0 : ({MENSUAL: dCfg.precio_mensual, ANUAL: dCfg.precio_anual, UNICO: dCfg.precio_unico}[plan] || 0);
+const appUrl = () => location.origin + location.pathname;
+async function devCargar() {
+  [dEmps, dPagos, dCfg] = await Promise.all([q(sb.rpc('api_dev_empresas')), q(sb.rpc('api_dev_pagos', {p_empresa: null})), q(sb.rpc('api_dev_config')).then(r => r[0])]);
+}
+function totalesPorMoneda(pagos) { const t = {}; pagos.forEach(p => t[p.moneda] = (t[p.moneda] || 0) + Number(p.monto)); return Object.entries(t).filter(([, v]) => v > 0); }
+async function devPanel() {
+  try {
+    await devCargar();
+    const mes = new Date(); mes.setDate(1); mes.setHours(0, 0, 0, 0);
+    const pm = dPagos.filter(p => new Date(p.fecha) >= mes), cnt = k => dEmps.filter(e => e.estado === k).length;
+    const ing = totalesPorMoneda(pm);
+    $('#dKpi').innerHTML = `<div class="card"><span class="mut">Empresas activas</span><b>${cnt('ACTIVA') + cnt('POR_VENCER')}</b></div>
+      <div class="card"><span class="mut">Por vencer (7 días)</span><b style="color:var(--warn)">${cnt('POR_VENCER')}</b></div>
+      <div class="card"><span class="mut">Vencidas / suspendidas</span><b class="${cnt('VENCIDA') + cnt('SUSPENDIDA') ? 'c' : ''}">${cnt('VENCIDA') + cnt('SUSPENDIDA')}</b></div>
+      <div class="card"><span class="mut">Cobrado este mes</span><b>${ing.length ? ing.map(([m, v]) => esc(fMon(v, m))).join('<br>') : '0'}</b></div>`;
+    const at = dEmps.filter(e => e.estado !== 'ACTIVA').sort((a, b) => (a.dias_restantes ?? 9e9) - (b.dias_restantes ?? 9e9));
+    $('#dAten').innerHTML = at.length ? `<thead><tr><th>Empresa</th><th>Plan</th><th>Vence</th><th>Estado</th><th></th></tr></thead><tbody>` + at.map(e => `<tr><td><b>${esc(e.nombre)}</b>${e.telefono ? `<div class="mut">${esc(e.telefono)}</div>` : ''}</td><td><span class="plan ${esc(e.plan)}">${PLANES[e.plan]}</span></td><td class="nw">${venceTx(e)}</td><td><span class="badge ${EST[e.estado][1]}">${EST[e.estado][0]}</span></td><td class="num"><button class="sm pri" data-cobrar="${Number(e.id)}">Cobrar</button></td></tr>`).join('') + '</tbody>'
+      : '<tbody><tr><td class="empty">Todas las empresas están al día.</td></tr></tbody>';
+    $('#dUltP').innerHTML = dPagos.length ? '<tbody>' + dPagos.slice(0, 8).map(p => `<tr><td><b>${esc(p.empresa)}</b><div class="mut">${esc(fecha(p.fecha))}</div></td><td><span class="plan ${esc(p.plan)}">${PLANES[p.plan]}</span></td><td class="num">${esc(fMon(p.monto, p.moneda))}</td></tr>`).join('') + '</tbody>' : '<tbody><tr><td class="empty">Sin cobros todavía.</td></tr></tbody>';
+  } catch (er) { toast(errMsg(er), true); }
+}
+async function devEmpresas() { try { await devCargar(); pintarEmps(); } catch (er) { toast(errMsg(er), true); } }
+function pintarEmps() {
+  const t = $('#dQ').value.trim().toLowerCase();
+  const l = dEmps.filter(e => !t || [e.nombre, e.ruc, e.admin_usuario, e.telefono].some(v => String(v || '').toLowerCase().includes(t)));
+  $('#dEmp').innerHTML = `<thead><tr><th>Empresa</th><th>Plan</th><th>Vence</th><th>Estado</th><th class="num">Usuarios</th><th class="num">Clientes</th><th class="num">Operaciones</th><th></th></tr></thead><tbody>` +
+    (l.length ? l.map(e => `<tr><td><b>${esc(e.nombre)}</b><div class="mut">${e.admin_usuario ? 'admin: ' + esc(e.admin_usuario) : 'sin administrador'}${e.ruc ? ' · RUC ' + esc(e.ruc) : ''}</div></td>
+      <td><span class="plan ${esc(e.plan)}">${PLANES[e.plan]}</span></td><td class="nw">${venceTx(e)}</td><td><span class="badge ${EST[e.estado][1]}">${EST[e.estado][0]}</span></td>
+      <td class="num">${Number(e.usuarios)} / ${Number(e.max_usuarios)}</td><td class="num">${Number(e.clientes)}</td><td class="num">${Number(e.operaciones)}</td>
+      <td class="num nw"><button class="sm pri" data-cobrar="${Number(e.id)}">Cobrar</button> <button class="sm" data-eusr="${Number(e.id)}">Usuarios</button> <button class="sm" data-eemp="${Number(e.id)}">Editar</button></td></tr>`).join('')
+     : '<tr><td colspan="8" class="empty">Sin empresas. Cree la primera con “Nueva empresa”.</td></tr>') + '</tbody>';
+}
+$('#dQ').oninput = pintarEmps;
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-cobrar],[data-eusr],[data-eemp],[data-nueva-emp]'); if (!b || !esDev()) return;
+  if (b.dataset.cobrar) dlgCobrar(dEmps.find(x => x.id === Number(b.dataset.cobrar)));
+  else if (b.dataset.eusr) dlgUsrEmp(dEmps.find(x => x.id === Number(b.dataset.eusr)));
+  else if (b.dataset.eemp) dlgEditEmp(dEmps.find(x => x.id === Number(b.dataset.eemp)));
+  else dlgNuevaEmp();
+});
+const refrescarDev = () => { const r = location.hash.slice(1); (r === 'dev-empresas' ? devEmpresas : r === 'dev-pagos' ? devPagos : devPanel)(); };
+function vencePrev(actual, plan) {
+  if (plan === 'UNICO') return 'Licencia permanente (sin vencimiento)';
+  const hoy = new Date(); hoy.setHours(12, 0, 0, 0);
+  if (plan === 'PRUEBA') { const d = new Date(hoy); d.setDate(d.getDate() + Number(dCfg?.dias_prueba || 7)); return 'Vence el ' + d.toLocaleDateString('es-PY'); }
+  let base = actual ? new Date(actual + 'T12:00') : hoy; if (base < hoy) base = hoy;
+  const d = new Date(base); plan === 'ANUAL' ? d.setFullYear(d.getFullYear() + 1) : d.setMonth(d.getMonth() + 1);
+  return 'Nuevo vencimiento: ' + d.toLocaleDateString('es-PY');
+}
+const opcMonPago = sel => ['USD','PYG','BRL','EUR','ARS'].map(m => `<option ${m === sel ? 'selected' : ''}>${m}</option>`).join('');
+async function dlgNuevaEmp() {
+  if (!dCfg) try { await devCargar(); } catch (er) { return toast(errMsg(er), true); }
+  const pw = genPass();
+  abrirDlg(`<h2>Nueva empresa</h2><p class="mut">Se crea la empresa con su usuario administrador. Entregue el usuario y la contraseña a su cliente.</p>
+    <label for="nNom">Nombre de la empresa</label><input id="nNom" required maxlength="120">
+    <div class="two"><div><label for="nRuc">RUC</label><input id="nRuc" maxlength="30"></div><div><label for="nTel">Teléfono / WhatsApp</label><input id="nTel" maxlength="40"></div></div>
+    <label for="nEm">Email de contacto</label><input id="nEm" type="email" maxlength="120">
+    <div class="two"><div><label for="nPlan">Plan</label><select id="nPlan">${Object.entries(PLANES).map(([k, v]) => `<option value="${k}">${v}${k === 'PRUEBA' ? ` (${Number(dCfg.dias_prueba)} días)` : ''}</option>`).join('')}</select></div>
+    <div><label for="nMax">Usuarios permitidos</label><input id="nMax" type="number" min="1" max="500" value="3" required></div></div>
+    <div class="two"><div><label for="nMonto">Monto cobrado</label><input id="nMonto" inputmode="decimal" value="0"></div><div><label for="nMon">Moneda</label><select id="nMon">${opcMonPago(dCfg.moneda_precios)}</select></div></div>
+    <div class="hint" id="nVence"></div>
+    <h3 style="margin-top:20px">Usuario administrador</h3>
+    <div class="two"><div><label for="nUsr">Nombre de usuario</label><input id="nUsr" required pattern="[a-z0-9][a-z0-9._\\-]{2,39}" title="3 a 40 letras minúsculas, números, punto o guion" autocapitalize="none" autocomplete="off" placeholder="ej. cambiosur"></div>
+    <div><label for="nAdm">Nombre de la persona</label><input id="nAdm" maxlength="80" placeholder="Administrador"></div></div>
+    <label for="nPw">Contraseña inicial</label><div class="inrow"><input id="nPw" required minlength="8" value="${pw}" autocomplete="off"><button type="button" id="nGen">Generar</button></div>`,
+  async () => {
+    const u = $('#nUsr').value.trim().toLowerCase(), p = $('#nPw').value, m = parseNum($('#nMonto').value) || 0;
+    await q(sb.rpc('api_dev_crear_empresa', {p_nombre: $('#nNom').value, p_ruc: $('#nRuc').value, p_telefono: $('#nTel').value, p_email: $('#nEm').value, p_plan: $('#nPlan').value, p_max_usuarios: Number($('#nMax').value), p_admin_usuario: u, p_admin_nombre: $('#nAdm').value, p_admin_password: p, p_monto: m, p_moneda: $('#nMon').value, p_nota: null}));
+    credenciales($('#nNom').value, u, p); refrescarDev(); return 'keep';
+  },
+  e => {
+    const id = e && e.target.id;
+    if (!e || id === 'nPlan') $('#nMonto').value = $('#nPlan').value === 'PRUEBA' ? '0' : fmtT(precio($('#nPlan').value));
+    $('#nVence').textContent = vencePrev(null, $('#nPlan').value);
+    if (!$('#nUsr').dataset.touched && (!e || id === 'nNom')) $('#nUsr').value = $('#nNom').value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '').slice(0, 30);
+    if (id === 'nUsr') $('#nUsr').dataset.touched = 1;
+  }, 'Crear empresa');
+  $('#nGen').onclick = () => $('#nPw').value = genPass();
+}
+function credenciales(emp, u, p) {
+  const txt = `Acceso a Cartera Multimoneda — ${emp}\nLink: ${appUrl()}\nUsuario: ${u}\nContraseña: ${p}`;
+  dlg.innerHTML = `<form method="dialog"><div class="okbig">${ico('ok')}</div><h2 style="text-align:center">Empresa creada</h2>
+    <p class="mut" style="text-align:center">Envíe estos datos a su cliente. La contraseña no se vuelve a mostrar.</p>
+    <div class="cred">Link: ${esc(appUrl())}<br>Usuario: <b>${esc(u)}</b><br>Contraseña: <b>${esc(p)}</b></div>
+    <div class="dact"><button type="button" id="cCopy">Copiar datos</button><button class="pri" value="x">Listo</button></div></form>`;
+  $('#cCopy').onclick = async () => { try { await navigator.clipboard.writeText(txt); toast('Datos copiados'); } catch { toast('No se pudo copiar', true); } };
+  if (!dlg.open) dlg.showModal();
+}
+function dlgCobrar(e) {
+  if (!e) return;
+  abrirDlg(`<h2>Registrar cobro</h2><p class="mut">${esc(e.nombre)} · plan actual <span class="plan ${esc(e.plan)}">${PLANES[e.plan]}</span> · ${e.plan === 'UNICO' ? 'permanente' : 'vence ' + esc(fD(e.vence))}</p>
+    <label for="kPlan">Plan que paga</label><select id="kPlan"><option value="MENSUAL">Mensual (+1 mes)</option><option value="ANUAL">Anual (+1 año)</option><option value="UNICO">Pago único (permanente)</option></select>
+    <div class="two"><div><label for="kMonto">Monto</label><input id="kMonto" inputmode="decimal" required></div><div><label for="kMon">Moneda</label><select id="kMon">${opcMonPago(dCfg?.moneda_precios || 'USD')}</select></div></div>
+    <label for="kNota">Nota (opcional)</label><input id="kNota" maxlength="200" placeholder="ej. transferencia Banco X">
+    <div class="prev" id="kPrev"></div>`,
+  async () => {
+    const m = parseNum($('#kMonto').value);
+    if (!(m >= 0)) throw new Error('Monto inválido');
+    const v = await q(sb.rpc('api_dev_registrar_pago', {p_empresa: e.id, p_plan: $('#kPlan').value, p_monto: m, p_moneda: $('#kMon').value, p_nota: $('#kNota').value}));
+    toast(v ? 'Cobro registrado. Vence el ' + fD(v) : 'Cobro registrado. Licencia permanente'); refrescarDev();
+  },
+  ev => {
+    if (!ev || ev.target.id === 'kPlan') $('#kMonto').value = fmtT(precio($('#kPlan').value));
+    $('#kPrev').textContent = vencePrev(e.plan === 'UNICO' ? null : e.vence, $('#kPlan').value) + (e.estado !== 'ACTIVA' && e.estado !== 'POR_VENCER' ? ' · se reactiva el acceso' : '');
+  }, 'Registrar cobro');
+}
+function dlgEditEmp(e) {
+  if (!e) return;
+  abrirDlg(`<h2>Editar empresa</h2>
+    <label for="eNom">Nombre</label><input id="eNom" required maxlength="120" value="${esc(e.nombre)}">
+    <div class="two"><div><label for="eRuc">RUC</label><input id="eRuc" value="${esc(e.ruc)}"></div><div><label for="eTel">Teléfono</label><input id="eTel" value="${esc(e.telefono)}"></div></div>
+    <label for="eEm">Email</label><input id="eEm" type="email" value="${esc(e.email_contacto)}">
+    <div class="two"><div><label for="eMax">Usuarios permitidos</label><input id="eMax" type="number" min="1" max="500" value="${Number(e.max_usuarios)}"></div>
+    <div><label for="eVen">Vencimiento</label><input id="eVen" type="date" value="${esc(e.vence || '')}" ${e.plan === 'UNICO' ? 'disabled' : 'required'}></div></div>
+    <label for="eNot">Notas internas</label><textarea id="eNot">${esc(e.notas)}</textarea>
+    <label class="chk" style="margin-top:14px"><input type="checkbox" id="eAct" ${e.activo ? 'checked' : ''}> Acceso habilitado (desmarque para suspender)</label>`,
+  async () => {
+    await q(sb.rpc('api_dev_actualizar_empresa', {p_id: e.id, p_nombre: $('#eNom').value, p_ruc: $('#eRuc').value, p_telefono: $('#eTel').value, p_email: $('#eEm').value, p_activo: $('#eAct').checked, p_max_usuarios: Number($('#eMax').value), p_vence: e.plan === 'UNICO' ? null : $('#eVen').value, p_notas: $('#eNot').value}));
+    toast('Empresa actualizada'); refrescarDev();
+  }, null, 'Guardar');
+}
+async function dlgUsrEmp(e) {
+  if (!e) return;
+  let us = [];
+  try { us = await q(sb.rpc('api_dev_usuarios', {p_empresa: e.id})); } catch (er) { return toast(errMsg(er), true); }
+  const pw = genPass();
+  abrirDlg(`<h2>Usuarios · ${esc(e.nombre)}</h2>
+    <div class="scroll" style="margin-top:10px"><table><tbody>${us.map(u => `<tr><td><b>${esc(u.usuario)}</b><div class="mut">${esc(u.nombre)} · ${esc(ROLES[u.rol] || u.rol)}${u.activo ? '' : ' · inactivo'}</div></td><td class="mut nw">${u.ultimo_ingreso ? esc(fecha(u.ultimo_ingreso)) : 'nunca'}</td><td class="num"><button type="button" class="sm" data-rp="${esc(u.email)}">Nueva clave</button></td></tr>`).join('') || '<tr><td class="empty">Sin usuarios</td></tr>'}</tbody></table></div>
+    <h3 style="margin-top:18px">Agregar usuario</h3>
+    <div class="two"><div><label for="aU">Nombre de usuario</label><input id="aU" required pattern="[a-z0-9][a-z0-9._\\-]{2,39}" autocapitalize="none" autocomplete="off"></div><div><label for="aR">Rol</label><select id="aR">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${k === 'ADMIN' ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
+    <div class="two"><div><label for="aN">Nombre</label><input id="aN" maxlength="80"></div><div><label for="aP">Contraseña</label><input id="aP" required minlength="8" value="${pw}" autocomplete="off"></div></div>`,
+  async () => {
+    const u = $('#aU').value.trim().toLowerCase(), p = $('#aP').value;
+    await q(sb.rpc('api_dev_crear_usuario', {p_empresa: e.id, p_usuario: u, p_nombre: $('#aN').value, p_rol: $('#aR').value, p_password: p}));
+    credenciales(e.nombre, u, p); refrescarDev(); return 'keep';
+  }, null, 'Agregar usuario');
+  dlg.querySelectorAll('[data-rp]').forEach(b => b.onclick = async () => {
+    const u = us.find(x => x.email === b.dataset.rp), np = genPass();
+    b.disabled = true;
+    try { await q(sb.rpc('api_dev_actualizar_usuario', {p_email: u.email, p_rol: u.rol, p_activo: true, p_password: np})); credenciales(e.nombre, u.usuario, np); }
+    catch (er) { toast(errMsg(er), true); b.disabled = false; }
+  });
+}
+async function devPagos() {
+  try {
+    await devCargar();
+    const tot = totalesPorMoneda(dPagos);
+    $('#dPagTot').innerHTML = `<div class="card"><span class="mut">Cobros registrados</span><b>${dPagos.filter(p => Number(p.monto) > 0).length}</b></div><div class="card"><span class="mut">Total cobrado</span><b>${tot.length ? tot.map(([m, v]) => esc(fMon(v, m))).join('<br>') : '0'}</b></div>`;
+    $('#dPag').innerHTML = `<thead><tr><th>Fecha</th><th>Empresa</th><th>Plan</th><th class="num">Monto</th><th>Vencimiento</th><th>Nota</th></tr></thead><tbody>` +
+      (dPagos.length ? dPagos.map(p => `<tr><td class="mut nw">${esc(fecha(p.fecha))}</td><td><b>${esc(p.empresa)}</b></td><td><span class="plan ${esc(p.plan)}">${PLANES[p.plan]}</span></td><td class="num">${esc(fMon(p.monto, p.moneda))}</td><td class="nw">${p.plan === 'UNICO' ? 'Permanente' : esc(fD(p.vence_anterior)) + ' → <b>' + esc(fD(p.vence_nuevo)) + '</b>'}</td><td class="mut">${esc(p.nota)}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">Sin cobros.</td></tr>') + '</tbody>';
+  } catch (er) { toast(errMsg(er), true); }
+}
+$('#dXPag').onclick = () => exportarXls(dPagos.map(p => ({Fecha: fecha(p.fecha), Empresa: p.empresa, Plan: PLANES[p.plan], Monto: Number(p.monto), Moneda: p.moneda, 'Vence antes': p.vence_anterior || '', 'Vence después': p.vence_nuevo || 'Permanente', Nota: p.nota || '', Usuario: p.usuario_registro})), 'cobros_membresias');
+async function devAjustes() {
+  try {
+    dCfg = (await q(sb.rpc('api_dev_config')))[0];
+    $('#pMon').value = dCfg.moneda_precios; $('#pDias').value = dCfg.dias_prueba; $('#pMes').value = fmtT(dCfg.precio_mensual); $('#pAno').value = fmtT(dCfg.precio_anual); $('#pUni').value = fmtT(dCfg.precio_unico);
+    $('#sNom').value = dCfg.soporte_nombre || ''; $('#sTel').value = dCfg.soporte_telefono || ''; $('#sEm').value = dCfg.soporte_email || '';
+  } catch (er) { toast(errMsg(er), true); }
+}
+$('#fDev').onsubmit = async e => {
+  e.preventDefault(); const b = $('#btnDevG'); b.disabled = true;
+  try { await q(sb.rpc('api_dev_set_config', {p_soporte_nombre: $('#sNom').value, p_soporte_telefono: $('#sTel').value, p_soporte_email: $('#sEm').value, p_moneda: $('#pMon').value, p_mensual: parseNum($('#pMes').value) || 0, p_anual: parseNum($('#pAno').value) || 0, p_unico: parseNum($('#pUni').value) || 0, p_dias_prueba: Number($('#pDias').value) || 7})); toast('Guardado'); devAjustes(); }
   catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
 };
 
