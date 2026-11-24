@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartera Multimoneda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+/* VOICE: libro mayor de casa de cambio — sobrio, exacto, sin adornos
+   IDEA: ficha contable impresa; cada divisa es un renglón con su saldo grande
+   PICTURE: la ficha de 5 monedas, saldos en tinta azul (a pagar) o carmín (a cobrar)
+   COLOUR and TYPE: blanco, tinta #10131a, prusia #0b4f8a, carmín #c1121f; Literata + Inter
+   LAYOUT: lista de clientes a la izquierda, ficha y extracto a la derecha; se apila en móvil */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#0f1217);--ink:light-dark(#10131a,#e8eaef);--mut:light-dark(#5b6270,#9aa1ad);
+--line:light-dark(#e3e5ea,#262b34);--soft:light-dark(#f5f6f8,#161a21);--pag:light-dark(#0b4f8a,#6aa8e6);--cob:light-dark(#c1121f,#ff6b74);--pri:light-dark(#10131a,#e8eaef);--on:light-dark(#fff,#0f1217)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Literata,Georgia,serif;font-weight:600;line-height:1.1;margin:0;text-wrap:balance}
+h1{font-size:clamp(26px,3vw,34px)}h2{font-size:22px}h3{font-size:17px}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.mut{color:var(--mut);font-size:14px}
+.hide{display:none!important}
+button,.btn{font:500 15px Inter,sans-serif;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+button.pri{background:var(--pri);color:var(--on);border-color:var(--pri)}
+button.sm{min-height:36px;padding:0 10px;font-size:14px}
+button:disabled{opacity:.5;cursor:wait}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--pag);outline-offset:2px}
+input,select,textarea{font:16px Inter,sans-serif;width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+textarea{min-height:72px}
+label{display:block;font-size:14px;font-weight:500;margin:12px 0 4px}
+.chk{display:flex;gap:10px;align-items:center;font-weight:400;font-size:15px}.chk input{width:20px;min-height:20px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px max(4vw,16px);border-bottom:1px solid var(--line)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav a{padding:10px 14px;border-radius:8px;color:var(--ink);text-decoration:none;font-weight:500}
+nav a.on{background:var(--soft)}
+main{max-width:1320px;margin:0 auto;padding:20px max(4vw,16px) 60px}
+.grid{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:28px}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.lista{display:flex;flex-direction:column;gap:2px;max-height:70vh;overflow:auto;margin-top:10px}
+.cli{display:block;text-align:left;width:100%;padding:10px 12px;border:0;border-radius:8px;background:none;height:auto}
+.cli.on,.cli:hover{background:var(--soft)}
+.cli b{display:block;font-weight:600}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.tag{font-size:12px;padding:1px 6px;border-radius:4px;background:var(--soft);font-variant-numeric:tabular-nums}
+.tag.p{color:var(--pag)}.tag.c{color:var(--cob)}
+.fhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:14px;border-bottom:2px solid var(--ink)}
+.row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 4px;border-bottom:1px solid var(--line)}
+.row.sel{background:var(--soft)}
+.row .mon b{font-family:Literata,serif;font-size:18px}
+.saldo{font-family:Literata,serif;font-size:clamp(22px,2.6vw,30px);font-weight:600}
+.p{color:var(--pag)}.c{color:var(--cob)}.z{color:var(--mut)}
+.est{font-size:14px;font-weight:500}
+.acc{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:640px){.row{grid-template-columns:minmax(0,1fr) auto}.row .est{grid-column:1}.row .acc{grid-column:1/-1;justify-content:flex-start}}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--mut);font-size:13px}
+tr.anul td{color:var(--mut);text-decoration:line-through}tr.anul td.keep{text-decoration:none}
+.badge{font-size:12px;padding:2px 6px;border-radius:4px;background:var(--soft);white-space:nowrap}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:22px 0 10px}
+.bar>div{flex:1 1 150px}
+.scroll{overflow-x:auto}
+.card{max-width:420px;margin:8vh auto;padding:28px;border:1px solid var(--line);border-radius:12px}
+dialog{border:1px solid var(--line);border-radius:12px;padding:24px;width:min(560px,94vw);background:var(--bg);color:var(--ink);max-height:92vh}
+dialog::backdrop{background:rgb(0 0 0/.45)}
+.dact{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.prev{margin-top:14px;padding:12px;border-radius:8px;background:var(--soft);font-size:15px}
+.prev .num{text-align:left}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 12px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);padding:12px 18px;border-radius:8px;background:var(--pri);color:var(--on);font-size:15px;max-width:92vw;z-index:9;transition:opacity .2s}
+#toast.err{background:var(--cob);color:#fff}
+.empty{padding:40px 0;color:var(--mut)}
+.ok{font-family:Literata,serif;font-size:24px;color:var(--pag)}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mut)}.stack td:empty{display:none}}
+@media print{header,nav,.no-print,.acc,#lado,.bar button{display:none!important}.grid{display:block}body{background:#fff;color:#000}}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+
+<section id="vLogin" class="card hide">
+  <h1>Cartera multimoneda</h1>
+  <p class="mut">Ingrese con su usuario de caja.</p>
+  <form id="fLogin">
+    <div id="cfgBox">
+      <label for="cfgUrl">URL del proyecto Supabase</label>
+      <input id="cfgUrl" placeholder="https://xxxx.supabase.co" autocomplete="off">
+      <label for="cfgKey">Clave anon (pública)</label>
+      <input id="cfgKey" autocomplete="off">
+    </div>
+    <label for="lEmail">Email</label><input id="lEmail" type="email" autocomplete="username" required>
+    <label for="lPass">Contraseña</label><input id="lPass" type="password" autocomplete="current-password" required>
+    <div class="dact"><button type="button" id="btnCfg" class="sm">Cambiar servidor</button><button class="pri" id="btnLogin">Ingresar</button></div>
+  </form>
+</section>
+
+<div id="vApp" class="hide">
+<header>
+  <h2>Cartera multimoneda</h2>
+  <nav>
+    <a href="#clientes" data-r="clientes">Clientes</a>
+    <a href="#posicion" data-r="posicion">Posición y día</a>
+    <a href="#auditoria" data-r="auditoria">Auditoría</a>
+  </nav>
+  <div style="display:flex;gap:10px;align-items:center"><span class="mut" id="who"></span><button class="sm" id="btnOut">Salir</button></div>
+</header>
+<main>
+  <section id="rClientes" class="grid">
+    <aside id="lado">
+      <div style="display:flex;gap:8px"><input id="q" type="search" placeholder="Buscar nombre o documento" aria-label="Buscar cliente"><button class="pri" id="btnNuevo" title="Nuevo cliente">Nuevo</button></div>
+      <div class="lista" id="lista"></div>
+    </aside>
+    <div id="ficha"><p class="empty">Seleccione un cliente o registre uno nuevo.</p></div>
+  </section>
+  <section id="rPosicion" class="hide">
+    <h1>Posición de la casa por moneda</h1>
+    <p class="mut">Por pagar: dinero de clientes en custodia. Por cobrar: adelantos pendientes.</p>
+    <div class="scroll"><table id="tPos"></table></div>
+    <div class="bar"><div><label for="fDia">Movimientos del día</label><input id="fDia" type="date"></div><button id="btnDia">Ver</button></div>
+    <div class="scroll"><table id="tDia" class="stack"></table></div>
+  </section>
+  <section id="rAuditoria" class="hide">
+    <h1>Auditoría de saldos</h1>
+    <p class="mut">Compara cada saldo con la suma de su historial de movimientos.</p>
+    <div id="aud" style="margin-top:18px"></div>
+    <button id="btnAud" style="margin-top:14px">Volver a verificar</button>
+  </section>
+</main>
+</div>
+
+<dialog id="dlg"></dialog>
+<div id="toast" class="hide" role="status"></div>
+
+<script>
+{
+// ===== CONFIGURACIÓN: puede fijar aquí sus datos de Supabase para no pedirlos en pantalla =====
+const SB_URL_FIJA = '';
+const SB_KEY_FIJA = '';
+// ==============================================================================================
+
+const ORDEN = ['USD','EUR','BRL','PYG','ARS'];
+const FUERZA = {EUR:0, USD:1, BRL:2, ARS:3, PYG:4};
+const TIPOS = {
+  DEPOSITO_CLIENTE:  ['Depósito del cliente', 1, 'El cliente deja dinero a favor'],
+  COBRO_A_CLIENTE:   ['Cobro al cliente', 1, 'El cliente paga lo que debía'],
+  PAGO_A_CLIENTE:    ['Pago al cliente', -1, 'Se entrega dinero que tenía a favor'],
+  ENTREGA_A_CLIENTE: ['Entrega / adelanto', -1, 'Se adelanta dinero; queda debiendo'],
+  ARBITRAJE_ENTRADA: ['Cruce · entrada', 1], ARBITRAJE_SALIDA: ['Cruce · salida', -1],
+  ANULACION_ENTRADA: ['Anulación (+)', 1],   ANULACION_SALIDA: ['Anulación (−)', -1]
+};
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = { get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+                set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+let sb = null, perfil = null, monedas = [], cliente = null, ficha = [], monSel = null, buscaT = 0;
+
+const mon = c => monedas.find(m => m.codigo === c) || {codigo:c, simbolo:'', decimales:2, nombre:c};
+const fmtN = (n, c) => Math.abs(Number(n)).toLocaleString('es-PY', {minimumFractionDigits: mon(c).decimales, maximumFractionDigits: mon(c).decimales});
+const fmt = (n, c, signo) => (Number(n) < 0 ? '−' : (signo && Number(n) > 0 ? '+' : '')) + mon(c).simbolo + ' ' + fmtN(n, c);
+const cls = n => Number(n) > 0 ? 'p' : Number(n) < 0 ? 'c' : 'z';
+const estado = n => Number(n) > 0 ? 'Por pagar al cliente' : Number(n) < 0 ? 'Por cobrar al cliente' : 'Saldado';
+const fecha = t => new Date(t).toLocaleString('es-PY', {dateStyle:'short', timeStyle:'short'});
+const round = (n, c) => { const f = 10 ** mon(c).decimales; return Math.round(n * f) / f; };
+function parseNum(s, c) {
+  s = String(s || '').trim().replace(/\s/g, '');
+  if (!s) return NaN;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if ((s.match(/\./g) || []).length > 1 || (c && mon(c).decimales === 0)) s = s.replace(/\./g, '');
+  return Number(s);
+}
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = err ? 'err' : ''; clearTimeout(t._h);
+  t._h = setTimeout(() => t.className = 'hide', err ? 6000 : 3000);
+}
+const errMsg = e => (e && (e.message || e.error_description)) || 'Error desconocido';
+async function q(p) { const r = await p; if (r.error) throw r.error; return r.data; }
+const ordenar = arr => arr.sort((a, b) => ((ORDEN.indexOf(a.codigo) + 1 || 99) - (ORDEN.indexOf(b.codigo) + 1 || 99)));
+
+// ===== Conexión y sesión =====
+function conectar() {
+  const cfg = store.get('cmm_cfg') || {};
+  const url = SB_URL_FIJA || cfg.url, key = SB_KEY_FIJA || cfg.key;
+  if (!url || !key) return false;
+  sb = supabase.createClient(url, key, {auth: {persistSession: true}});
+  return true;
+}
+function verLogin() {
+  $('#vApp').classList.add('hide'); $('#vLogin').classList.remove('hide');
+  const cfg = store.get('cmm_cfg') || {};
+  $('#cfgUrl').value = cfg.url || ''; $('#cfgKey').value = cfg.key || '';
+  const fija = SB_URL_FIJA && SB_KEY_FIJA;
+  $('#cfgBox').classList.toggle('hide', !!(fija || (cfg.url && cfg.key)));
+  $('#btnCfg').classList.toggle('hide', !!fija);
+}
+$('#btnCfg').onclick = () => $('#cfgBox').classList.toggle('hide');
+$('#fLogin').onsubmit = async e => {
+  e.preventDefault();
+  const b = $('#btnLogin'); b.disabled = true;
+  try {
+    if (!(SB_URL_FIJA && SB_KEY_FIJA)) {
+      const url = $('#cfgUrl').value.trim().replace(/\/+$/, ''), key = $('#cfgKey').value.trim();
+      if (!/^https:\/\/.+/.test(url) || !key) throw new Error('Complete la URL y la clave de Supabase');
+      store.set('cmm_cfg', {url, key});
+    }
+    conectar();
+    await q(sb.auth.signInWithPassword({email: $('#lEmail').value.trim(), password: $('#lPass').value}));
+    $('#lPass').value = '';
+    await entrar();
+  } catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
+};
+async function entrar() {
+  try {
+    const p = await q(sb.rpc('api_mi_perfil'));
+    perfil = p[0];
+    monedas = ordenar(await q(sb.from('monedas').select('*')));
+  } catch (er) { toast(errMsg(er), true); await sb.auth.signOut(); return verLogin(); }
+  $('#who').textContent = perfil.nombre + ' · ' + perfil.rol.toLowerCase();
+  $('#vLogin').classList.add('hide'); $('#vApp').classList.remove('hide');
+  ruta(); buscar();
+}
+$('#btnOut').onclick = async () => { await sb.auth.signOut(); perfil = null; cliente = null; $('#ficha').innerHTML = '<p class="empty">Seleccione un cliente o registre uno nuevo.</p>'; verLogin(); };
+
+// ===== Rutas =====
+function ruta() {
+  const r = ['clientes','posicion','auditoria'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'clientes';
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.dataset.r === r));
+  $('#rClientes').classList.toggle('hide', r !== 'clientes');
+  $('#rPosicion').classList.toggle('hide', r !== 'posicion');
+  $('#rAuditoria').classList.toggle('hide', r !== 'auditoria');
+  if (r === 'posicion') verPosicion();
+  if (r === 'auditoria') verAuditoria();
+}
+addEventListener('hashchange', () => perfil && ruta());
+
+// ===== Clientes =====
+$('#q').oninput = () => { clearTimeout(buscaT); buscaT = setTimeout(buscar, 250); };
+async function buscar() {
+  const t = $('#q').value.replace(/[,()%*]/g, ' ').trim();
+  let qy = sb.from('clientes').select('id,nombre_completo,documento,telefono,activo').order('nombre_completo').limit(100);
+  if (t) qy = qy.or(`nombre_completo.ilike.%${t}%,documento.ilike.%${t}%`);
+  try {
+    const cl = await q(qy);
+    const ids = cl.map(c => c.id);
+    const sal = ids.length ? await q(sb.from('v_ficha_cartera').select('cliente_id,codigo,saldo_actual').in('cliente_id', ids).neq('saldo_actual', 0)) : [];
+    $('#lista').innerHTML = cl.length ? cl.map(c => `<button class="cli ${cliente && cliente.id === c.id ? 'on' : ''}" data-id="${Number(c.id)}">
+      <b>${esc(c.nombre_completo)}${c.activo ? '' : ' <span class="badge">inactivo</span>'}</b><span class="mut">${esc(c.documento)}</span>
+      <span class="tags">${ordenar(sal.filter(s => s.cliente_id === c.id)).map(s => `<span class="tag ${cls(s.saldo_actual)}">${esc(fmt(s.saldo_actual, s.codigo))}</span>`).join('')}</span></button>`).join('')
+      : '<p class="empty">Sin resultados.</p>';
+  } catch (er) { toast(errMsg(er), true); }
+}
+$('#lista').onclick = e => { const b = e.target.closest('.cli'); if (b) abrir(Number(b.dataset.id)); };
+
+async function abrir(id, mantener) {
+  try {
+    cliente = (await q(sb.from('clientes').select('*').eq('id', id)))[0];
+    ficha = ordenar(await q(sb.from('v_ficha_cartera').select('*').eq('cliente_id', id)));
+    if (!mantener || !ficha.some(f => f.codigo === monSel)) monSel = (ficha.find(f => Number(f.saldo_actual) !== 0) || ficha[0] || {}).codigo;
+    pintarFicha(); extracto();
+    document.querySelectorAll('.cli').forEach(b => b.classList.toggle('on', Number(b.dataset.id) === id));
+    if (!mantener && innerWidth < 900) $('#ficha').scrollIntoView({behavior: 'smooth'});
+  } catch (er) { toast(errMsg(er), true); }
+}
+function pintarFicha() {
+  const c = cliente;
+  $('#ficha').innerHTML = `<div class="fhead"><div><h1>${esc(c.nombre_completo)}</h1>
+    <p class="mut" style="margin:6px 0 0">${c.tipo_persona === 'JURIDICA' ? 'RUC' : 'CI / Doc.'} ${esc(c.documento)}${c.telefono ? ' · Tel. ' + esc(c.telefono) : ''}${c.activo ? '' : ' · <b>Inactivo</b>'}</p>
+    ${c.observaciones ? `<p class="mut" style="margin:4px 0 0">${esc(c.observaciones)}</p>` : ''}</div>
+    <div class="acc no-print"><button class="sm" id="btnEdit">Editar datos</button><button class="sm" id="btnPrint">Imprimir</button></div></div>
+    ${ficha.map(f => `<div class="row ${f.codigo === monSel ? 'sel' : ''}">
+      <div class="mon"><b>${esc(f.moneda)}</b><div class="mut">${esc(f.codigo)}</div></div>
+      <div class="saldo num ${cls(f.saldo_actual)}">${esc(fmt(f.saldo_actual, f.codigo))}</div>
+      <div class="est ${cls(f.saldo_actual)}">${estado(f.saldo_actual)}</div>
+      <div class="acc"><button class="sm" data-op="${esc(f.codigo)}" ${c.activo ? '' : 'disabled'}>Operar</button>
+        <button class="sm" data-cr="${esc(f.codigo)}" ${c.activo ? '' : 'disabled'}>Cruce</button>
+        <button class="sm" data-ex="${esc(f.codigo)}">Extracto</button></div></div>`).join('')}
+    <div class="bar"><h2 style="flex:1 1 100%">Extracto <span id="exMon"></span></h2>
+      <div><label for="exDesde">Desde</label><input type="date" id="exDesde"></div>
+      <div><label for="exHasta">Hasta</label><input type="date" id="exHasta"></div>
+      <button id="btnEx">Filtrar</button></div>
+    <div class="scroll"><table id="tEx" class="stack"></table></div>`;
+  $('#btnEdit').onclick = () => dlgCliente(cliente);
+  $('#btnPrint').onclick = () => { try { print(); } catch {} };
+  $('#btnEx').onclick = extracto;
+}
+$('#ficha').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.op) dlgOperar(b.dataset.op);
+  if (b.dataset.cr) dlgCruce(b.dataset.cr);
+  if (b.dataset.ex) { monSel = b.dataset.ex; pintarFicha(); extracto(); $('#tEx').scrollIntoView({behavior: 'smooth', block: 'nearest'}); }
+  if (b.dataset.an) dlgAnular(Number(b.dataset.an));
+});
+
+async function extracto() {
+  if (!cliente || !monSel) return;
+  $('#exMon').textContent = '· ' + mon(monSel).nombre;
+  let qy = sb.from('v_extracto').select('*').eq('cliente_id', cliente.id).eq('moneda_codigo', monSel).order('movimiento_id', {ascending: false}).limit(300);
+  const d = $('#exDesde').value, h = $('#exHasta').value;
+  if (d) qy = qy.gte('fecha_movimiento', new Date(d + 'T00:00:00').toISOString());
+  if (h) qy = qy.lte('fecha_movimiento', new Date(h + 'T23:59:59.999').toISOString());
+  try {
+    const m = await q(qy);
+    const puede = perfil.rol !== 'CAJERO';
+    $('#tEx').innerHTML = `<thead><tr><th>Fecha</th><th>Op.</th><th>Tipo</th><th class="num">Importe</th><th class="num">Saldo</th><th>Método</th><th>Concepto</th><th>Usuario</th><th></th></tr></thead><tbody>` +
+      (m.length ? m.map(r => `<tr class="${r.anulado ? 'anul' : ''}"><td>${esc(fecha(r.fecha_movimiento))}</td><td>#${Number(r.operacion_id)}</td>
+        <td>${esc((TIPOS[r.tipo_operacion] || [r.tipo_operacion])[0])}${r.tasa_cambio ? `<div class="mut">tasa ${esc(Number(r.tasa_cambio).toLocaleString('es-PY', {maximumFractionDigits: 6}))}</div>` : ''}</td>
+        <td class="num ${cls(r.importe)}">${esc(fmt(r.importe, monSel, true))}</td><td class="num">${esc(fmt(r.saldo_nuevo, monSel))}</td>
+        <td>${esc(r.metodo_pago)}${r.comprobante_ref ? `<div class="mut">${esc(r.comprobante_ref)}</div>` : ''}</td>
+        <td>${esc(r.concepto)}</td><td class="mut">${esc(r.usuario_registro)}</td>
+        <td class="keep">${r.anulado ? '<span class="badge">anulado</span>' : (puede && !r.tipo_operacion.startsWith('ANULACION') ? `<button class="sm no-print" data-an="${Number(r.operacion_id)}">Anular</button>` : '')}</td></tr>`).join('')
+       : '<tr><td colspan="9" class="mut">Sin movimientos en este período.</td></tr>') + '</tbody>';
+  } catch (er) { toast(errMsg(er), true); }
+}
+
+// ===== Diálogos =====
+const dlg = $('#dlg');
+function abrirDlg(html, onSubmit, onInput) {
+  dlg.innerHTML = `<form id="dF">${html}<div class="dact"><button type="button" id="dX">Cancelar</button><button class="pri" id="dOk">Confirmar</button></div></form>`;
+  $('#dX').onclick = () => dlg.close();
+  const f = $('#dF');
+  if (onInput) { f.oninput = onInput; onInput(); }
+  f.onsubmit = async e => {
+    e.preventDefault(); const b = $('#dOk'); b.disabled = true;
+    try { await onSubmit(); dlg.close(); } catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
+  };
+  dlg.showModal();
+}
+const saldoDe = c => Number((ficha.find(f => f.codigo === c) || {}).saldo_actual || 0);
+const opcMon = sel => monedas.map(m => `<option value="${esc(m.codigo)}" ${m.codigo === sel ? 'selected' : ''}>${esc(m.codigo)} · ${esc(m.nombre)}</option>`).join('');
+const metodos = `<option>EFECTIVO</option><option>TRANSFERENCIA</option><option>CHEQUE</option>`;
+
+async function refrescar() { await abrir(cliente.id, true); buscar(); }
+
+function dlgOperar(cod) {
+  abrirDlg(`<h2>Operación en ${esc(mon(cod).nombre)}</h2><p class="mut">${esc(cliente.nombre_completo)} · saldo actual ${esc(fmt(saldoDe(cod), cod))}</p>
+    <label for="oTipo">Tipo</label><select id="oTipo">${Object.entries(TIPOS).slice(0, 4).map(([k, v]) => `<option value="${k}">${v[1] > 0 ? '+' : '−'} ${v[0]} — ${v[2]}</option>`).join('')}</select>
+    <label for="oMonto">Monto (${esc(mon(cod).simbolo)})</label><input id="oMonto" inputmode="decimal" required autocomplete="off">
+    <div class="two"><div><label for="oMet">Método</label><select id="oMet">${metodos}</select></div>
+    <div><label for="oComp">Comprobante</label><input id="oComp" maxlength="50"></div></div>
+    <label for="oConc">Concepto</label><input id="oConc" required maxlength="300">
+    <div class="prev" id="oPrev"></div>`,
+  async () => {
+    const m = parseNum($('#oMonto').value, cod);
+    if (!(m > 0)) throw new Error('Monto inválido');
+    const id = await q(sb.rpc('api_operar_simple', {p_cliente_id: cliente.id, p_moneda: cod, p_tipo: $('#oTipo').value, p_monto: m,
+      p_concepto: $('#oConc').value, p_metodo: $('#oMet').value, p_comprobante: $('#oComp').value}));
+    toast('Operación #' + id + ' registrada'); monSel = cod; await refrescar();
+  },
+  () => {
+    const m = parseNum($('#oMonto').value, cod), s = saldoDe(cod), sg = TIPOS[$('#oTipo').value][1];
+    $('#oPrev').innerHTML = m > 0 ? `Monto: <b class="num">${esc(fmt(round(m, cod), cod))}</b><br>Saldo nuevo: <b class="num ${cls(s + sg * round(m, cod))}">${esc(fmt(s + sg * round(m, cod), cod))}</b> · ${estado(s + sg * round(m, cod))}` : 'Ingrese un monto.';
+  });
+}
+
+function dlgCruce(cod) {
+  const otro = cod !== 'PYG' && mon('PYG').nombre !== 'PYG' ? 'PYG' : monedas.find(m => m.codigo !== cod)?.codigo;
+  const sup = perfil.rol !== 'CAJERO';
+  abrirDlg(`<h2>Cruce de moneda</h2><p class="mut">${esc(cliente.nombre_completo)}</p>
+    <div class="two"><div><label for="cO">Sale de</label><select id="cO">${opcMon(cod)}</select></div>
+    <div><label for="cD">Entra en</label><select id="cD">${opcMon(otro)}</select></div></div>
+    <label for="cMonto">Monto a convertir (moneda de origen)</label><input id="cMonto" inputmode="decimal" required autocomplete="off">
+    <div class="two"><div><label for="cTasa">Tasa</label><input id="cTasa" inputmode="decimal" required autocomplete="off"></div>
+    <div><label for="cModo">Cálculo</label><select id="cModo"><option value="MULTIPLICAR">Monto × tasa</option><option value="DIVIDIR">Monto ÷ tasa</option></select></div></div>
+    <label for="cConc">Concepto</label><input id="cConc" required maxlength="300" value="Cruce de moneda">
+    <label class="chk"><input type="checkbox" id="cPagar"> Entregar el resultado en caja (registra pago al cliente)</label>
+    <div id="cPagoBox" class="two hide"><div><label for="cMet">Método</label><select id="cMet">${metodos}</select></div><div><label for="cComp">Comprobante</label><input id="cComp" maxlength="50"></div></div>
+    ${sup ? '<label class="chk"><input type="checkbox" id="cNeg"> Autorizar aunque el saldo de origen quede negativo</label>' : ''}
+    <div class="prev" id="cPrev"></div>`,
+  async () => {
+    const o = $('#cO').value, d = $('#cD').value, m = parseNum($('#cMonto').value, o), t = parseNum($('#cTasa').value);
+    if (o === d) throw new Error('Elija monedas distintas');
+    if (!(m > 0) || !(t > 0)) throw new Error('Monto o tasa inválidos');
+    const id = await q(sb.rpc('api_operar_arbitraje', {p_cliente_id: cliente.id, p_moneda_origen: o, p_moneda_destino: d, p_monto_origen: m,
+      p_tasa: t, p_modo: $('#cModo').value, p_concepto: $('#cConc').value, p_pagar_efectivo: $('#cPagar').checked,
+      p_permitir_negativo: sup && $('#cNeg').checked, p_metodo: $('#cMet').value, p_comprobante: $('#cComp').value}));
+    toast('Cruce #' + id + ' registrado'); monSel = d; await refrescar();
+  },
+  e => {
+    const o = $('#cO').value, d = $('#cD').value;
+    if (!e || e.target.id === 'cO' || e.target.id === 'cD') $('#cModo').value = (FUERZA[o] ?? 9) <= (FUERZA[d] ?? 9) ? 'MULTIPLICAR' : 'DIVIDIR';
+    $('#cPagoBox').classList.toggle('hide', !$('#cPagar').checked);
+    const m = round(parseNum($('#cMonto').value, o), o), t = parseNum($('#cTasa').value);
+    if (!(m > 0) || !(t > 0) || o === d) { $('#cPrev').textContent = o === d ? 'Elija monedas distintas.' : 'Ingrese monto y tasa.'; return; }
+    const r = round($('#cModo').value === 'MULTIPLICAR' ? m * t : m / t, d);
+    const so = saldoDe(o) - m, sd = saldoDe(d) + r - ($('#cPagar').checked ? r : 0);
+    $('#cPrev').innerHTML = `Sale <b class="num">${esc(fmt(m, o))}</b> → entra <b class="num">${esc(fmt(r, d))}</b><br>
+      Saldo ${esc(o)}: <b class="num ${cls(so)}">${esc(fmt(so, o))}</b>${so < 0 ? ' · <b class="c">insuficiente</b>' : ''}<br>
+      Saldo ${esc(d)}: <b class="num ${cls(sd)}">${esc(fmt(sd, d))}</b>${$('#cPagar').checked ? ' (tras entregar en caja)' : ''}`;
+  });
+}
+
+async function dlgAnular(op) {
+  let movs = [];
+  try { movs = await q(sb.from('v_extracto').select('moneda_codigo,tipo_operacion,importe').eq('operacion_id', op)); } catch (er) { return toast(errMsg(er), true); }
+  abrirDlg(`<h2>Anular operación #${op}</h2>
+    <p class="mut">Se registra un contra-asiento por cada movimiento. Nada se borra.</p>
+    <ul>${movs.map(m => `<li>${esc((TIPOS[m.tipo_operacion] || [m.tipo_operacion])[0])}: <span class="num ${cls(m.importe)}">${esc(fmt(m.importe, m.moneda_codigo, true))}</span></li>`).join('')}</ul>
+    <label for="aMot">Motivo</label><textarea id="aMot" required maxlength="300"></textarea>`,
+  async () => {
+    if (!$('#aMot').value.trim()) throw new Error('Indique el motivo');
+    await q(sb.rpc('api_anular_operacion', {p_operacion_id: op, p_motivo: $('#aMot').value.trim()}));
+    toast('Operación #' + op + ' anulada'); await refrescar();
+  });
+}
+
+function dlgCliente(c) {
+  const nuevo = !c; c = c || {tipo_persona: 'FISICA', activo: true};
+  abrirDlg(`<h2>${nuevo ? 'Nuevo cliente' : 'Editar cliente'}</h2>
+    <div class="two"><div><label for="kTipo">Tipo de persona</label><select id="kTipo" ${nuevo ? '' : 'disabled'}><option value="FISICA">Física</option><option value="JURIDICA" ${c.tipo_persona === 'JURIDICA' ? 'selected' : ''}>Jurídica</option></select></div>
+    <div><label for="kDoc">CI / RUC / Pasaporte</label><input id="kDoc" required maxlength="30" value="${esc(c.documento)}" ${nuevo ? '' : 'readonly'}></div></div>
+    <label for="kNom">Nombre completo / razón social</label><input id="kNom" required maxlength="150" value="${esc(c.nombre_completo)}">
+    <label for="kTel">Teléfono</label><input id="kTel" type="tel" maxlength="30" value="${esc(c.telefono)}">
+    <label for="kDir">Dirección</label><input id="kDir" value="${esc(c.direccion)}">
+    <label for="kObs">Observaciones</label><textarea id="kObs">${esc(c.observaciones)}</textarea>
+    ${nuevo ? '<p class="mut">Se crean automáticamente sus subcuentas en todas las monedas.</p>' : `<label class="chk"><input type="checkbox" id="kAct" ${c.activo ? 'checked' : ''} ${perfil.rol === 'CAJERO' ? 'disabled' : ''}> Cliente activo</label>`}`,
+  async () => {
+    if (nuevo) {
+      const id = await q(sb.rpc('api_crear_cliente', {p_tipo: $('#kTipo').value, p_nombre: $('#kNom').value, p_documento: $('#kDoc').value,
+        p_telefono: $('#kTel').value, p_direccion: $('#kDir').value, p_observaciones: $('#kObs').value}));
+      toast('Cliente registrado'); $('#q').value = ''; await buscar(); await abrir(id);
+    } else {
+      await q(sb.rpc('api_actualizar_cliente', {p_id: c.id, p_nombre: $('#kNom').value, p_telefono: $('#kTel').value,
+        p_direccion: $('#kDir').value, p_observaciones: $('#kObs').value, p_activo: $('#kAct').checked}));
+      toast('Datos actualizados'); await refrescar();
+    }
+  });
+}
+$('#btnNuevo').onclick = () => dlgCliente(null);
+
+// ===== Posición y día =====
+async function verPosicion() {
+  try {
+    const p = ordenar(await q(sb.from('v_posicion_monedas').select('*')));
+    $('#tPos').innerHTML = `<thead><tr><th>Moneda</th><th class="num">Por pagar</th><th class="num">Por cobrar</th><th class="num">Neto</th><th class="num">Cuentas</th></tr></thead><tbody>` +
+      p.map(r => `<tr><td><b>${esc(r.codigo)}</b> <span class="mut">${esc(mon(r.codigo).nombre)}</span></td><td class="num p">${esc(fmt(r.por_pagar, r.codigo))}</td>
+        <td class="num c">${esc(fmt(r.por_cobrar, r.codigo))}</td><td class="num ${cls(r.neto)}"><b>${esc(fmt(r.neto, r.codigo))}</b></td><td class="num">${Number(r.cuentas_con_saldo)}</td></tr>`).join('') + '</tbody>';
+  } catch (er) { toast(errMsg(er), true); }
+  if (!$('#fDia').value) $('#fDia').value = new Date().toLocaleDateString('en-CA');
+  verDia();
+}
+$('#btnDia').onclick = verDia;
+async function verDia() {
+  try {
+    const d = await q(sb.from('v_resumen_dia').select('*').eq('fecha', $('#fDia').value));
+    d.sort((a, b) => (ORDEN.indexOf(a.moneda_codigo) - ORDEN.indexOf(b.moneda_codigo)) || a.tipo_operacion.localeCompare(b.tipo_operacion));
+    $('#tDia').innerHTML = `<thead><tr><th>Moneda</th><th>Tipo</th><th>Método</th><th class="num">Cant.</th><th class="num">Total</th></tr></thead><tbody>` +
+      (d.length ? d.map(r => `<tr><td>${esc(r.moneda_codigo)}</td><td>${esc((TIPOS[r.tipo_operacion] || [r.tipo_operacion])[0])}</td><td>${esc(r.metodo_pago)}</td>
+        <td class="num">${Number(r.cantidad)}</td><td class="num ${TIPOS[r.tipo_operacion]?.[1] > 0 ? 'p' : 'c'}">${esc(fmt(r.total, r.moneda_codigo))}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="mut">Sin movimientos ese día.</td></tr>') + '</tbody>';
+  } catch (er) { toast(errMsg(er), true); }
+}
+
+// ===== Auditoría =====
+$('#btnAud').onclick = verAuditoria;
+async function verAuditoria() {
+  try {
+    const a = await q(sb.from('v_auditoria_descuadres').select('*'));
+    $('#aud').innerHTML = a.length
+      ? `<p class="c"><b>${a.length} subcuenta(s) con descuadre.</b> Revise de inmediato.</p><div class="scroll"><table><thead><tr><th>Cliente</th><th>Moneda</th><th class="num">Saldo registrado</th><th class="num">Según movimientos</th></tr></thead><tbody>
+         ${a.map(r => `<tr><td>#${Number(r.cliente_id)}</td><td>${esc(r.moneda_codigo)}</td><td class="num">${esc(fmt(r.saldo_actual, r.moneda_codigo))}</td><td class="num">${esc(fmt(r.saldo_calculado, r.moneda_codigo))}</td></tr>`).join('')}</tbody></table></div>`
+      : `<p class="ok">Todo cuadra.</p><p class="mut">Verificado ${esc(fecha(new Date()))}.</p>`;
+  } catch (er) { toast(errMsg(er), true); }
+}
+
+// ===== Inicio =====
+(async () => {
+  if (!conectar()) return verLogin();
+  const {data} = await sb.auth.getSession();
+  if (data && data.session) entrar(); else verLogin();
+})();
+}
+</script>
+</body>
+</html>
