@@ -211,6 +211,17 @@ input.chg{border-color:var(--warn);background:#fffaf0}
   <button class="dark" id="lkOut" style="margin-top:20px;width:100%">Cerrar sesión</button>
 </div></section>
 
+<!-- ===== CAMBIO DE CONTRASEÑA OBLIGATORIO ===== -->
+<section id="vPw" class="hide" style="min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(120% 90% at 0% 0%,#1d3a66 0%,var(--side) 60%)"><form class="card" id="fPw" style="max-width:420px;width:100%;padding:32px">
+  <div class="lockic" style="background:#e6effc;color:var(--pag)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M17 6l3 3M15 8l2 2"/></svg></div>
+  <h1 style="text-align:center">Cree su contraseña</h1>
+  <p class="mut" style="text-align:center;font-size:15px" id="pwMsg">Ingresó con una contraseña temporal. Elija una nueva para continuar.</p>
+  <label for="np1">Nueva contraseña</label><input id="np1" type="password" minlength="6" required autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+  <label for="np2">Repetir contraseña</label><input id="np2" type="password" minlength="6" required autocomplete="new-password">
+  <button class="pri" id="btnNp" style="width:100%;margin-top:20px;min-height:46px">Guardar y continuar</button>
+  <button type="button" class="ghost sm" id="npOut" style="width:100%;margin-top:8px">Cerrar sesión</button>
+</form></section>
+
 <!-- ===== APP ===== -->
 <div id="vApp" class="hide">
   <aside class="side">
@@ -421,7 +432,7 @@ function conectar() {
   return true;
 }
 function verLogin() {
-  $('#vApp').classList.add('hide'); $('#vLock').classList.add('hide'); $('#vLogin').classList.remove('hide');
+  $('#vApp').classList.add('hide'); $('#vLock').classList.add('hide'); $('#vPw').classList.add('hide'); $('#vLogin').classList.remove('hide');
   $('#noCfg').classList.toggle('hide', !!sb || conectar());
   setTimeout(() => $('#lUser').focus(), 50);
 }
@@ -454,6 +465,7 @@ async function entrar() {
   try {
     perfil = (await q(sb.rpc('api_mi_perfil')))[0];
     if (!perfil) throw new Error('Usuario sin perfil');
+    if (perfil.debe_cambiar_clave) return pedirClave();
     if (!esDev() && perfil.estado !== 'OK') return bloquear();
     if (!esDev()) await cargarBase();
   } catch (er) { toast(errMsg(er), true); await sb.auth.signOut(); return verLogin(); }
@@ -478,9 +490,24 @@ function bloquear() {
   $('#vLogin').classList.add('hide'); $('#vApp').classList.add('hide'); $('#vLock').classList.remove('hide');
 }
 $('#lkOut').onclick = async () => { await sb.auth.signOut(); perfil = null; verLogin(); };
+function pedirClave() {
+  $('#pwMsg').textContent = `Hola ${perfil.nombre.split(' ')[0]}: ingresó con una contraseña temporal. Elija una nueva para continuar.`;
+  $('#np1').value = ''; $('#np2').value = '';
+  ['#vLogin', '#vApp', '#vLock'].forEach(k => $(k).classList.add('hide')); $('#vPw').classList.remove('hide');
+  setTimeout(() => $('#np1').focus(), 50);
+}
+$('#fPw').onsubmit = async e => {
+  e.preventDefault(); const b = $('#btnNp'); b.disabled = true;
+  try {
+    if ($('#np1').value !== $('#np2').value) throw new Error('Las contraseñas no coinciden');
+    await q(sb.rpc('api_cambiar_mi_password', {p_password: $('#np1').value}));
+    toast('Contraseña creada. ¡Bienvenido!'); $('#vPw').classList.add('hide'); await entrar();
+  } catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
+};
+$('#npOut').onclick = async () => { await sb.auth.signOut(); perfil = null; $('#vPw').classList.add('hide'); verLogin(); };
 $('#btnPw').onclick = () => abrirDlg(`<h2>Cambiar mi contraseña</h2>
-  <label for="mp1">Nueva contraseña</label><input id="mp1" type="password" minlength="8" required autocomplete="new-password">
-  <label for="mp2">Repetir contraseña</label><input id="mp2" type="password" minlength="8" required autocomplete="new-password">`,
+  <label for="mp1">Nueva contraseña</label><input id="mp1" type="password" minlength="6" required autocomplete="new-password">
+  <label for="mp2">Repetir contraseña</label><input id="mp2" type="password" minlength="6" required autocomplete="new-password">`,
   async () => { if ($('#mp1').value !== $('#mp2').value) throw new Error('Las contraseñas no coinciden'); await q(sb.rpc('api_cambiar_mi_password', {p_password: $('#mp1').value})); toast('Contraseña actualizada'); }, null, 'Guardar');
 $('#btnOut').onclick = async () => { await sb.auth.signOut(); perfil = null; cliente = null; dCfg = null; $('#ficha').innerHTML = '<div class="card empty">Seleccione un cliente o registre uno nuevo.</div>'; verLogin(); };
 
@@ -892,13 +919,18 @@ function dlgUsuario(u) {
     <label for="uEm">Nombre de usuario</label><input id="uEm" required pattern="[a-z0-9][a-z0-9._\\-]{2,39}" title="3 a 40 letras minúsculas, números, punto o guion" value="${esc(u.usuario)}" ${nuevo ? '' : 'readonly'} autocomplete="off" autocapitalize="none" placeholder="ej. juan.caja">
     <div class="two"><div><label for="uNom">Nombre</label><input id="uNom" required maxlength="80" value="${esc(u.nombre)}"></div>
     <div><label for="uRol">Rol</label><select id="uRol">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${u.rol === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
-    <label for="uPw">${nuevo ? 'Contraseña inicial' : 'Nueva contraseña (opcional)'}</label><input id="uPw" type="password" minlength="8" ${nuevo ? 'required' : ''} autocomplete="new-password" placeholder="Mínimo 8 caracteres">
+    <label for="uPw">${nuevo ? 'Contraseña temporal' : 'Nueva contraseña temporal (opcional)'}</label><div class="inrow"><input id="uPw" minlength="6" ${nuevo ? 'required' : ''} value="${nuevo ? genPass() : ''}" autocomplete="off" placeholder="Mínimo 6 caracteres"><button type="button" id="uGen">Generar</button></div>
+    <p class="mut" style="margin:6px 0 0">El usuario deberá cambiarla al ingresar.</p>
     ${nuevo ? '' : `<label class="chk" style="margin-top:14px"><input type="checkbox" id="uAct" ${u.activo ? 'checked' : ''}> Usuario activo</label>`}`,
   async () => {
-    if (nuevo) await q(sb.rpc('api_crear_usuario', {p_usuario: $('#uEm').value.trim().toLowerCase(), p_nombre: $('#uNom').value, p_rol: $('#uRol').value, p_password: $('#uPw').value}));
-    else await q(sb.rpc('api_actualizar_usuario', {p_email: u.email, p_nombre: $('#uNom').value, p_rol: $('#uRol').value, p_activo: $('#uAct').checked, p_password: $('#uPw').value || null}));
-    toast(nuevo ? 'Usuario creado' : 'Usuario actualizado'); verUsuarios();
+    const un = nuevo ? $('#uEm').value.trim().toLowerCase() : u.usuario, pw = $('#uPw').value;
+    if (nuevo) await q(sb.rpc('api_crear_usuario', {p_usuario: un, p_nombre: $('#uNom').value, p_rol: $('#uRol').value, p_password: pw}));
+    else await q(sb.rpc('api_actualizar_usuario', {p_email: u.email, p_nombre: $('#uNom').value, p_rol: $('#uRol').value, p_activo: $('#uAct').checked, p_password: pw || null}));
+    verUsuarios();
+    if (pw) { credenciales(casa.nombre, un, pw); return 'keep'; }
+    toast('Usuario actualizado');
   }, null, nuevo ? 'Crear usuario' : 'Guardar');
+  $('#uGen').onclick = () => $('#uPw').value = genPass();
 }
 
 // ===== AJUSTES =====
@@ -951,7 +983,7 @@ const EST = {ACTIVA:['activa','g'], POR_VENCER:['por vencer','y'], VENCIDA:['ven
 const fD = d => d ? new Date(d + 'T12:00').toLocaleDateString('es-PY') : '—';
 const fMon = (n, m) => Number(n).toLocaleString('es-PY', {minimumFractionDigits: m === 'PYG' ? 0 : 2, maximumFractionDigits: m === 'PYG' ? 0 : 2}) + ' ' + m;
 const venceTx = e => e.plan === 'UNICO' ? '<span class="mut">Permanente</span>' : `${esc(fD(e.vence))}<div class="mut">${e.dias_restantes < 0 ? `hace ${-e.dias_restantes} días` : e.dias_restantes === 0 ? 'hoy' : `en ${e.dias_restantes} días`}</div>`;
-const genPass = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const a = new Uint32Array(10); crypto.getRandomValues(a); return [...a].map(x => c[x % c.length]).join(''); };
+const genPass = () => { const a = new Uint32Array(1); crypto.getRandomValues(a); return String(100000 + (a[0] % 900000)); };
 const precio = plan => !dCfg ? 0 : ({MENSUAL: dCfg.precio_mensual, ANUAL: dCfg.precio_anual, UNICO: dCfg.precio_unico}[plan] || 0);
 const appUrl = () => location.origin + location.pathname;
 async function devCargar() {
@@ -1017,7 +1049,8 @@ async function dlgNuevaEmp() {
     <h3 style="margin-top:20px">Usuario administrador</h3>
     <div class="two"><div><label for="nUsr">Nombre de usuario</label><input id="nUsr" required pattern="[a-z0-9][a-z0-9._\\-]{2,39}" title="3 a 40 letras minúsculas, números, punto o guion" autocapitalize="none" autocomplete="off" placeholder="ej. cambiosur"></div>
     <div><label for="nAdm">Nombre de la persona</label><input id="nAdm" maxlength="80" placeholder="Administrador"></div></div>
-    <label for="nPw">Contraseña inicial</label><div class="inrow"><input id="nPw" required minlength="8" value="${pw}" autocomplete="off"><button type="button" id="nGen">Generar</button></div>`,
+    <label for="nPw">Contraseña temporal</label><div class="inrow"><input id="nPw" required minlength="6" value="${pw}" autocomplete="off"><button type="button" id="nGen">Generar</button></div>
+    <p class="mut" style="margin:6px 0 0">El cliente deberá cambiarla en su primer ingreso.</p>`,
   async () => {
     const u = $('#nUsr').value.trim().toLowerCase(), p = $('#nPw').value, m = parseNum($('#nMonto').value) || 0;
     await q(sb.rpc('api_dev_crear_empresa', {p_nombre: $('#nNom').value, p_ruc: $('#nRuc').value, p_telefono: $('#nTel').value, p_email: $('#nEm').value, p_plan: $('#nPlan').value, p_max_usuarios: Number($('#nMax').value), p_admin_usuario: u, p_admin_nombre: $('#nAdm').value, p_admin_password: p, p_monto: m, p_moneda: $('#nMon').value, p_nota: null}));
@@ -1033,10 +1066,10 @@ async function dlgNuevaEmp() {
   $('#nGen').onclick = () => $('#nPw').value = genPass();
 }
 function credenciales(emp, u, p) {
-  const txt = `Acceso a Cartera Multimoneda — ${emp}\nLink: ${appUrl()}\nUsuario: ${u}\nContraseña: ${p}`;
-  dlg.innerHTML = `<form method="dialog"><div class="okbig">${ico('ok')}</div><h2 style="text-align:center">Empresa creada</h2>
-    <p class="mut" style="text-align:center">Envíe estos datos a su cliente. La contraseña no se vuelve a mostrar.</p>
-    <div class="cred">Link: ${esc(appUrl())}<br>Usuario: <b>${esc(u)}</b><br>Contraseña: <b>${esc(p)}</b></div>
+  const txt = `Acceso a Cartera Multimoneda — ${emp}\nLink: ${appUrl()}\nUsuario: ${u}\nContraseña temporal: ${p}\n(Al ingresar el sistema le pedirá crear su propia contraseña)`;
+  dlg.innerHTML = `<form method="dialog"><div class="okbig">${ico('ok')}</div><h2 style="text-align:center">Acceso listo</h2>
+    <p class="mut" style="text-align:center">Envíe estos datos. Al ingresar, el sistema le pedirá crear su propia contraseña. La temporal no se vuelve a mostrar.</p>
+    <div class="cred">Link: ${esc(appUrl())}<br>Usuario: <b>${esc(u)}</b><br>Contraseña temporal: <b>${esc(p)}</b></div>
     <div class="dact"><button type="button" id="cCopy">Copiar datos</button><button class="pri" value="x">Listo</button></div></form>`;
   $('#cCopy').onclick = async () => { try { await navigator.clipboard.writeText(txt); toast('Datos copiados'); } catch { toast('No se pudo copiar', true); } };
   if (!dlg.open) dlg.showModal();
@@ -1080,10 +1113,10 @@ async function dlgUsrEmp(e) {
   try { us = await q(sb.rpc('api_dev_usuarios', {p_empresa: e.id})); } catch (er) { return toast(errMsg(er), true); }
   const pw = genPass();
   abrirDlg(`<h2>Usuarios · ${esc(e.nombre)}</h2>
-    <div class="scroll" style="margin-top:10px"><table><tbody>${us.map(u => `<tr><td><b>${esc(u.usuario)}</b><div class="mut">${esc(u.nombre)} · ${esc(ROLES[u.rol] || u.rol)}${u.activo ? '' : ' · inactivo'}</div></td><td class="mut nw">${u.ultimo_ingreso ? esc(fecha(u.ultimo_ingreso)) : 'nunca'}</td><td class="num"><button type="button" class="sm" data-rp="${esc(u.email)}">Nueva clave</button></td></tr>`).join('') || '<tr><td class="empty">Sin usuarios</td></tr>'}</tbody></table></div>
+    <div class="scroll" style="margin-top:10px"><table><tbody>${us.map(u => `<tr><td><b>${esc(u.usuario)}</b><div class="mut">${esc(u.nombre)} · ${esc(ROLES[u.rol] || u.rol)}${u.activo ? '' : ' · inactivo'}</div></td><td class="mut nw">${u.ultimo_ingreso ? esc(fecha(u.ultimo_ingreso)) : 'nunca'}</td><td class="num"><button type="button" class="sm" data-rp="${esc(u.email)}">Clave temporal</button></td></tr>`).join('') || '<tr><td class="empty">Sin usuarios</td></tr>'}</tbody></table></div>
     <h3 style="margin-top:18px">Agregar usuario</h3>
     <div class="two"><div><label for="aU">Nombre de usuario</label><input id="aU" required pattern="[a-z0-9][a-z0-9._\\-]{2,39}" autocapitalize="none" autocomplete="off"></div><div><label for="aR">Rol</label><select id="aR">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${k === 'ADMIN' ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
-    <div class="two"><div><label for="aN">Nombre</label><input id="aN" maxlength="80"></div><div><label for="aP">Contraseña</label><input id="aP" required minlength="8" value="${pw}" autocomplete="off"></div></div>`,
+    <div class="two"><div><label for="aN">Nombre</label><input id="aN" maxlength="80"></div><div><label for="aP">Contraseña temporal</label><input id="aP" required minlength="6" value="${pw}" autocomplete="off"></div></div>`,
   async () => {
     const u = $('#aU').value.trim().toLowerCase(), p = $('#aP').value;
     await q(sb.rpc('api_dev_crear_usuario', {p_empresa: e.id, p_usuario: u, p_nombre: $('#aN').value, p_rol: $('#aR').value, p_password: p}));
