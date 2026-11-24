@@ -160,6 +160,8 @@ dialog form{padding:22px 24px}
 .logobox{width:180px;height:90px;border:1px dashed #c5cfdd;border-radius:10px;display:grid;place-items:center;background:#fafbfd;color:var(--mut);font-size:13px;overflow:hidden}
 .logobox img{max-width:100%;max-height:100%;object-fit:contain}
 input.chg{border-color:var(--warn);background:#fffaf0}
+.mrow{display:flex;gap:16px;justify-content:space-between;align-items:center;padding:16px 0;border-top:1px solid var(--line);flex-wrap:wrap}.mrow>div{flex:1 1 280px}.mrow p{margin:4px 0 0}
+button.danger.solid{background:var(--cob);border-color:var(--cob);color:#fff}
 .savebar{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:#fbfcfe;flex-wrap:wrap}
 #printArea{display:none}
 @media print{
@@ -337,6 +339,11 @@ input.chg{border-color:var(--warn);background:#fffaf0}
         <label for="gPie">Pie del recibo</label><input id="gPie" maxlength="200">
         <div class="dact"><button class="pri" id="btnCfgG">Guardar</button></div>
       </form>
+      <div class="card pad" style="max-width:640px;margin-top:18px">
+        <h2>Mantenimiento</h2>
+        <div class="mrow" style="margin-top:12px"><div><b>Cargar datos de demostración</b><p class="mut">8 clientes de ejemplo con depósitos, adelantos, cruces, una anulación y cotizaciones. Útil para probar o mostrar el sistema.</p></div><button id="btnDemo">Cargar demo</button></div>
+        <div class="mrow"><div><b class="c">Reiniciar sistema</b><p class="mut">Borra todos los clientes, operaciones, saldos y cotizaciones de esta empresa. Se conservan los usuarios, el logo y los datos de la casa. No se puede deshacer.</p></div><button class="danger" id="btnReset">Reiniciar sistema</button></div>
+      </div>
     </section>
   </main>
 </div>
@@ -571,7 +578,7 @@ document.addEventListener('click', e => {
 $('#q').oninput = () => { clearTimeout(buscaT); buscaT = setTimeout(buscar, 250); };
 async function buscar() {
   const t = $('#q').value.replace(/[,()%*]/g, ' ').trim();
-  let qy = sb.from('clientes').select('id,nombre_completo,documento,activo').order('nombre_completo').limit(150);
+  let qy = sb.from('clientes').select('id,nombre_completo,documento,activo').eq('eliminado', false).order('nombre_completo').limit(150);
   if (t) qy = qy.or(`nombre_completo.ilike.%${t}%,documento.ilike.%${t}%`);
   try {
     const cl = await q(qy), ids = cl.map(c => c.id);
@@ -602,7 +609,7 @@ function pintarFicha() {
       <h2 style="font-size:20px">${esc(c.nombre_completo)} ${c.activo ? '' : '<span class="badge r">inactivo</span>'}</h2>
       <p class="mut" style="margin:3px 0 0">${c.tipo_persona === 'JURIDICA' ? 'RUC' : 'CI / Doc.'} ${esc(c.documento)}${c.telefono ? ' · Tel. ' + esc(c.telefono) : ''}${c.direccion ? ' · ' + esc(c.direccion) : ''}</p>
       ${c.observaciones ? `<p class="mut" style="margin:2px 0 0">${esc(c.observaciones)}</p>` : ''}</div></div>
-      <div class="acts"><button class="pri" id="bOp" ${act}>Nueva operación</button><button id="bCr" ${act}>Cruce de moneda</button><button id="bEd">Editar</button></div></div>
+      <div class="acts"><button class="pri" id="bOp" ${act}>Nueva operación</button><button id="bCr" ${act}>Cruce de moneda</button><button id="bEd">Editar</button>${esAdm() ? '<button class="danger" id="bDel">Eliminar</button>' : ''}</div></div>
     <div class="saldos">${ficha.map(f => `<button class="sal ${f.codigo === monSel ? 'on' : ''}" data-mon="${esc(f.codigo)}">
       <div class="h"><span class="cur">${esc(f.codigo)}</span><div><b>${esc(f.moneda)}</b><span>Ver extracto</span></div></div>
       <div class="v num ${cls(f.saldo_actual)}" style="text-align:left">${esc(fmt(f.saldo_actual, f.codigo))}</div>
@@ -614,6 +621,7 @@ function pintarFicha() {
   $('#bOp').onclick = () => dlgOperar(monSel);
   $('#bCr').onclick = () => dlgCruce(monSel);
   $('#bEd').onclick = () => dlgCliente(cliente);
+  if ($('#bDel')) $('#bDel').onclick = dlgEliminarCliente;
   $('#btnEx').onclick = extracto;
   $('#bXls').onclick = () => exportarXls(extrRows.map(r => ({Fecha: fecha(r.fecha_movimiento), Recibo: nRec(r.operacion_id), Tipo: tipoTx(r.tipo_operacion), Importe: Number(r.importe), Saldo: Number(r.saldo_nuevo), Tasa: r.tasa_cambio ? Number(r.tasa_cambio) : '', Metodo: r.metodo_pago, Comprobante: r.comprobante_ref || '', Concepto: r.concepto, Usuario: r.usuario_registro, Anulado: r.anulado ? 'SÍ' : ''})), `extracto_${cliente.documento}_${monSel}`);
   $('#bPdf').onclick = imprimirExtracto;
@@ -740,6 +748,19 @@ async function dlgAnular(op) {
   }, null, 'Anular operación');
 }
 
+function dlgEliminarCliente() {
+  const c = cliente, conSaldo = ficha.filter(f => Number(f.saldo_actual) !== 0);
+  abrirDlg(`<h2>Eliminar cliente</h2><p style="font-size:15px"><b>${esc(c.nombre_completo)}</b> · ${esc(c.documento)}</p>
+    ${conSaldo.length ? `<div class="prev" style="border-color:#f5c2c4;background:#fdf3f3"><b class="c">No se puede eliminar todavía.</b> Tiene saldos pendientes:<br>${conSaldo.map(f => `<span class="num ${cls(f.saldo_actual)}">${esc(fmt(f.saldo_actual, f.codigo))}</span>`).join(' · ')}<br>Pague o cobre esos saldos hasta dejarlos en cero.</div>`
+      : `<div class="prev">Si el cliente nunca tuvo operaciones, se borra por completo.<br>Si tiene historial, desaparece de la lista pero sus operaciones quedan guardadas para auditoría, y su documento queda libre para registrarlo de nuevo.</div>`}`,
+  async () => {
+    if (conSaldo.length) return;
+    const r = await q(sb.rpc('api_eliminar_cliente', {p_id: c.id}));
+    toast(r === 'ELIMINADO' ? 'Cliente eliminado' : 'Cliente eliminado (historial conservado)');
+    cliente = null; $('#ficha').innerHTML = '<div class="card empty">Seleccione un cliente o registre uno nuevo.</div>'; buscar();
+  }, null, conSaldo.length ? 'Entendido' : 'Eliminar cliente');
+  if (!conSaldo.length) $('#dOk').classList.add('danger', 'solid'); else $('#dOk').classList.remove('pri');
+}
 function dlgCliente(c) {
   const nuevo = !c; c = c || {tipo_persona:'FISICA', activo:true};
   abrirDlg(`<h2>${nuevo ? 'Nuevo cliente' : 'Editar cliente'}</h2>
@@ -1150,6 +1171,29 @@ $('#fDev').onsubmit = async e => {
   e.preventDefault(); const b = $('#btnDevG'); b.disabled = true;
   try { await q(sb.rpc('api_dev_set_config', {p_soporte_nombre: $('#sNom').value, p_soporte_telefono: $('#sTel').value, p_soporte_email: $('#sEm').value, p_moneda: $('#pMon').value, p_mensual: parseNum($('#pMes').value) || 0, p_anual: parseNum($('#pAno').value) || 0, p_unico: parseNum($('#pUni').value) || 0, p_dias_prueba: Number($('#pDias').value) || 7})); toast('Guardado'); devAjustes(); }
   catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
+};
+
+// ===== MANTENIMIENTO =====
+$('#btnDemo').onclick = () => abrirDlg(`<h2>Cargar datos de demostración</h2>
+  <p class="mut" style="font-size:15px">Se agregan 8 clientes de ejemplo (documentos que empiezan con DEMO-) con operaciones reales en el historial y cotizaciones del día. Sus clientes actuales no se modifican.</p>
+  <p class="mut">Para quitarlos después use “Reiniciar sistema” o elimine cada cliente.</p>`,
+  async () => {
+    const n = await q(sb.rpc('api_cargar_demo'));
+    await cargarBase(); buscar(); toast(`${n} clientes de demostración cargados`); location.hash = '#inicio';
+  }, null, 'Cargar demo');
+$('#btnReset').onclick = () => {
+  abrirDlg(`<h2 class="c">Reiniciar sistema</h2>
+    <p style="font-size:15px">Se borrarán <b>todos</b> los clientes, operaciones, saldos, recibos y cotizaciones de <b>${esc(casa.nombre)}</b>.</p>
+    <div class="prev" style="border-color:#f5c2c4;background:#fdf3f3">Esta acción <b>no se puede deshacer</b>. Se conservan usuarios, logo y datos de la casa.</div>
+    <label for="rsTx">Para confirmar, escriba <b>REINICIAR</b></label><input id="rsTx" autocomplete="off" autocapitalize="characters" required>`,
+  async () => {
+    if ($('#rsTx').value.trim().toUpperCase() !== 'REINICIAR') throw new Error('Escriba REINICIAR para confirmar');
+    const r = await q(sb.rpc('api_reiniciar_empresa', {p_confirmacion: $('#rsTx').value}));
+    cliente = null; ficha = []; $('#ficha').innerHTML = '<div class="card empty">Seleccione un cliente o registre uno nuevo.</div>';
+    await cargarBase(); buscar();
+    toast(`Sistema reiniciado: ${r.clientes} clientes y ${r.operaciones} operaciones borrados`);
+  }, () => { const ok = $('#rsTx').value.trim().toUpperCase() === 'REINICIAR'; $('#dOk').disabled = !ok; }, 'Borrar todo');
+  $('#dOk').classList.remove('pri'); $('#dOk').classList.add('danger', 'solid'); $('#dOk').disabled = true;
 };
 
 // ===== INICIO DE LA APP =====
