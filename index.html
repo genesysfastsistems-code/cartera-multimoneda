@@ -162,6 +162,14 @@ dialog form{padding:22px 24px}
 input.chg{border-color:var(--warn);background:#fffaf0}
 .mrow{display:flex;gap:16px;justify-content:space-between;align-items:center;padding:16px 0;border-top:1px solid var(--line);flex-wrap:wrap}.mrow>div{flex:1 1 280px}.mrow p{margin:4px 0 0}
 button.danger.solid{background:var(--cob);border-color:var(--cob);color:#fff}
+.ecgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin:14px 0}
+.ec{border:1px solid var(--line);border-radius:11px;padding:14px}
+.ec .h{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.ec dl{display:grid;grid-template-columns:1fr auto;gap:4px 10px;margin:0;font-size:13.5px}.ec dt{color:var(--mut)}.ec dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ec .tot{border-top:1px solid var(--line);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ec .tot b{font-size:18px}
+dialog.wide{width:min(1000px,96vw)}
+.big{font-size:clamp(26px,3vw,34px);font-weight:700;letter-spacing:-.02em}
 .savebar{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:#fbfcfe;flex-wrap:wrap}
 #printArea{display:none}
 @media print{
@@ -312,6 +320,15 @@ button.danger.solid{background:var(--cob);border-color:var(--cob);color:#fff}
       <div class="card" style="margin-top:18px"><div class="fbar"><div><label for="fDia">Fecha</label><input id="fDia" type="date"></div><button id="btnDia">Ver</button></div><div class="scroll"><table id="tDia"></table></div></div>
     </section>
 
+    <!-- GANANCIAS -->
+    <section data-v="ganancias" class="hide">
+      <div class="top"><div><h1>Ganancias por cambio</h1><p class="mut">Calculadas por costo promedio: lo que se vende se compara con lo que costó comprar esa moneda. Expresadas en guaraníes.</p></div><button id="gXls">Exportar Excel</button></div>
+      <div class="card" style="margin-bottom:18px"><div class="fbar" style="border:0"><div><label for="gDesde">Desde</label><input type="date" id="gDesde"></div><div><label for="gHasta">Hasta</label><input type="date" id="gHasta"></div>
+        <button class="sm" data-gp="hoy">Hoy</button><button class="sm" data-gp="mes">Este mes</button><button class="sm" data-gp="ano">Este año</button><button class="pri" id="gCalc">Calcular</button></div></div>
+      <div class="kpis" id="gKpi"></div>
+      <div class="card"><div class="chead"><h2>Detalle de compras y ventas</h2><span class="mut" id="gNota"></span></div><div class="scroll"><table id="gTab"></table></div></div>
+    </section>
+
     <!-- AUDITORÍA -->
     <section data-v="auditoria" class="hide">
       <div class="top"><div><h1>Auditoría de saldos</h1><p class="mut">Compara cada saldo con la suma de su historial de movimientos.</p></div><button id="btnAud">Verificar ahora</button></div>
@@ -377,12 +394,13 @@ const I = {
   auditoria:'<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
   usuarios:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.2-6 8-6s7 2 8 6"/>',
   ajustes:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
-  ok:'<path d="M5 12.5l4.5 4.5L19 7.5"/>'
+  ok:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  ganancias:'<circle cx="12" cy="12" r="9"/><path d="M14.8 9.2c-.5-.9-1.6-1.4-2.8-1.4-1.6 0-2.8.8-2.8 2.1 0 3 5.7 1.6 5.7 4.3 0 1.3-1.2 2.2-2.9 2.2-1.3 0-2.4-.6-2.9-1.5M12 6.3v1.5M12 16.8v1.5"/>'
 };
 const ico = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
 const RUTAS = [
   {id:'inicio', t:'Inicio'}, {id:'clientes', t:'Clientes'}, {id:'cotizaciones', t:'Cotizaciones'},
-  {id:'posicion', t:'Posición y día'}, {id:'auditoria', t:'Auditoría'},
+  {id:'posicion', t:'Posición y día'}, {id:'ganancias', t:'Ganancias', sup:true}, {id:'auditoria', t:'Auditoría'},
   {id:'usuarios', t:'Usuarios', admin:true}, {id:'ajustes', t:'Datos de la casa', admin:true}
 ];
 
@@ -478,7 +496,7 @@ async function entrar() {
   } catch (er) { toast(errMsg(er), true); await sb.auth.signOut(); return verLogin(); }
   $('#meNom').textContent = perfil.nombre; $('#meRol').textContent = esDev() ? 'Desarrollador' : (ROLES[perfil.rol] || perfil.rol); $('#meAv').textContent = iniciales(perfil.nombre);
   if (esDev()) { casa = {nombre: 'Panel desarrollador'}; $('#casaNom').textContent = 'Panel desarrollador'; $('#logoTx').classList.remove('img'); $('#logoTx').textContent = 'DV'; }
-  rutasAct = esDev() ? RUTAS_DEV : RUTAS.filter(r => !r.admin || esAdm());
+  rutasAct = esDev() ? RUTAS_DEV : RUTAS.filter(r => (!r.admin || esAdm()) && (!r.sup || esSup()));
   $('#menu').innerHTML = rutasAct.map(r => `<a href="#${r.id}" data-r="${r.id}">${ico(r.ico || r.id)}<span>${r.t}</span></a>`).join('');
   const b = $('#banner'), dr = perfil.dias_restantes;
   if (!esDev() && dr != null && dr <= 7) {
@@ -524,7 +542,7 @@ function ruta() {
   if (!rutasAct.find(x => x.id === r)) r = rutasAct[0].id;
   document.querySelectorAll('#menu a').forEach(a => a.classList.toggle('on', a.dataset.r === r));
   document.querySelectorAll('main>section').forEach(s => s.classList.toggle('hide', s.dataset.v !== r));
-  ({inicio: verInicio, cotizaciones: verCotiz, posicion: verPosicion, auditoria: verAuditoria, usuarios: verUsuarios, ajustes: verAjustes,
+  ({inicio: verInicio, ganancias: verGanancias, cotizaciones: verCotiz, posicion: verPosicion, auditoria: verAuditoria, usuarios: verUsuarios, ajustes: verAjustes,
     'dev-panel': devPanel, 'dev-empresas': devEmpresas, 'dev-pagos': devPagos, 'dev-ajustes': devAjustes}[r] || (() => {}))();
   scrollTo(0, 0);
 }
@@ -609,7 +627,7 @@ function pintarFicha() {
       <h2 style="font-size:20px">${esc(c.nombre_completo)} ${c.activo ? '' : '<span class="badge r">inactivo</span>'}</h2>
       <p class="mut" style="margin:3px 0 0">${c.tipo_persona === 'JURIDICA' ? 'RUC' : 'CI / Doc.'} ${esc(c.documento)}${c.telefono ? ' · Tel. ' + esc(c.telefono) : ''}${c.direccion ? ' · ' + esc(c.direccion) : ''}</p>
       ${c.observaciones ? `<p class="mut" style="margin:2px 0 0">${esc(c.observaciones)}</p>` : ''}</div></div>
-      <div class="acts"><button class="pri" id="bOp" ${act}>Nueva operación</button><button id="bCr" ${act}>Cruce de moneda</button><button id="bEd">Editar</button>${esAdm() ? '<button class="danger" id="bDel">Eliminar</button>' : ''}</div></div>
+      <div class="acts"><button class="pri" id="bOp" ${act}>Nueva operación</button><button id="bCr" ${act}>Cruce de moneda</button><button id="bEc">Estado de cuenta</button><button id="bEd">Editar</button>${esAdm() ? '<button class="danger" id="bDel">Eliminar</button>' : ''}</div></div>
     <div class="saldos">${ficha.map(f => `<button class="sal ${f.codigo === monSel ? 'on' : ''}" data-mon="${esc(f.codigo)}">
       <div class="h"><span class="cur">${esc(f.codigo)}</span><div><b>${esc(f.moneda)}</b><span>Ver extracto</span></div></div>
       <div class="v num ${cls(f.saldo_actual)}" style="text-align:left">${esc(fmt(f.saldo_actual, f.codigo))}</div>
@@ -621,6 +639,7 @@ function pintarFicha() {
   $('#bOp').onclick = () => dlgOperar(monSel);
   $('#bCr').onclick = () => dlgCruce(monSel);
   $('#bEd').onclick = () => dlgCliente(cliente);
+  $('#bEc').onclick = estadoCuenta;
   if ($('#bDel')) $('#bDel').onclick = dlgEliminarCliente;
   $('#btnEx').onclick = extracto;
   $('#bXls').onclick = () => exportarXls(extrRows.map(r => ({Fecha: fecha(r.fecha_movimiento), Recibo: nRec(r.operacion_id), Tipo: tipoTx(r.tipo_operacion), Importe: Number(r.importe), Saldo: Number(r.saldo_nuevo), Tasa: r.tasa_cambio ? Number(r.tasa_cambio) : '', Metodo: r.metodo_pago, Comprobante: r.comprobante_ref || '', Concepto: r.concepto, Usuario: r.usuario_registro, Anulado: r.anulado ? 'SÍ' : ''})), `extracto_${cliente.documento}_${monSel}`);
@@ -650,6 +669,7 @@ async function extracto() {
 // ===== DIÁLOGOS =====
 const dlg = $('#dlg');
 function abrirDlg(html, onSubmit, onInput, okTx = 'Confirmar') {
+  dlg.classList.remove('wide');
   dlg.innerHTML = `<form id="dF">${html}<div class="dact"><button type="button" id="dX">Cancelar</button><button class="pri" id="dOk">${okTx}</button></div></form>`;
   $('#dX').onclick = () => dlg.close();
   const f = $('#dF');
@@ -1172,6 +1192,109 @@ $('#fDev').onsubmit = async e => {
   try { await q(sb.rpc('api_dev_set_config', {p_soporte_nombre: $('#sNom').value, p_soporte_telefono: $('#sTel').value, p_soporte_email: $('#sEm').value, p_moneda: $('#pMon').value, p_mensual: parseNum($('#pMes').value) || 0, p_anual: parseNum($('#pAno').value) || 0, p_unico: parseNum($('#pUni').value) || 0, p_dias_prueba: Number($('#pDias').value) || 7})); toast('Guardado'); devAjustes(); }
   catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
 };
+
+// ===== ESTADO DE CUENTA DEL CLIENTE =====
+const CAT = {DEPOSITO_CLIENTE:'dep', PAGO_A_CLIENTE:'ret', ENTREGA_A_CLIENTE:'ent', COBRO_A_CLIENTE:'cob', ARBITRAJE_ENTRADA:'cin', ARBITRAJE_SALIDA:'cout'};
+async function traerTodo(qf) {
+  let out = [], i = 0;
+  for (;;) { const r = await q(qf().range(i, i + 999)); out = out.concat(r); if (r.length < 1000 || out.length >= 20000) break; i += 1000; }
+  return out;
+}
+async function estadoCuenta() {
+  if (!cliente) return;
+  let rows;
+  try { rows = await traerTodo(() => sb.from('v_extracto').select('*').eq('cliente_id', cliente.id).order('movimiento_id')); } catch (er) { return toast(errMsg(er), true); }
+  const ag = {};
+  rows.forEach(r => {
+    if (r.anulado || r.tipo_operacion.startsWith('ANULACION')) return;
+    const a = ag[r.moneda_codigo] ||= {dep:0, ret:0, ent:0, cob:0, cin:0, cout:0, n:0};
+    a[CAT[r.tipo_operacion]] += Math.abs(Number(r.importe)); a.n++;
+  });
+  const monAct = ficha.filter(f => ag[f.codigo] || Number(f.saldo_actual) !== 0);
+  const linea = (t, v, c, sg) => v ? `<dt>${t}</dt><dd class="${sg > 0 ? 'p' : 'c'}">${sg > 0 ? '+' : '−'}${esc(fmtN(v, c))}</dd>` : '';
+  const tarjetas = monAct.map(f => {
+    const a = ag[f.codigo] || {dep:0, ret:0, ent:0, cob:0, cin:0, cout:0}, sal = Number(f.saldo_actual), c = f.codigo;
+    const debe = a.ent ? `<div class="prev" style="margin:10px 0 0;padding:8px 10px;font-size:13px;line-height:1.6">Se le prestó <b>${esc(fmt(a.ent, c))}</b> · pagó <b>${esc(fmt(a.cob, c))}</b><br>${sal < 0 ? `Falta pagar: <b class="c">${esc(fmt(-sal, c))}</b>` : '<b class="p">Deuda cancelada</b>'}</div>` : '';
+    return `<div class="ec"><div class="h"><span class="cur">${esc(c)}</span><b>${esc(f.moneda)}</b></div>
+      <dl>${linea('Depósitos', a.dep, c, 1)}${linea('Cobros (pagó deuda)', a.cob, c, 1)}${linea('Entró por cruce', a.cin, c, 1)}${linea('Retiros / pagos', a.ret, c, -1)}${linea('Adelantos / préstamos', a.ent, c, -1)}${linea('Salió por cruce', a.cout, c, -1)}</dl>
+      <div class="tot"><span class="mut">${sal < 0 ? 'Debe' : sal > 0 ? 'A su favor' : 'Saldado'}</span><b class="num ${cls(sal)}">${esc(fmt(sal, c))}</b></div>${debe}</div>`;
+  }).join('') || '<p class="empty">Sin movimientos.</p>';
+  const debeAlgo = ficha.filter(f => Number(f.saldo_actual) < 0), favor = ficha.filter(f => Number(f.saldo_actual) > 0);
+  const resumen = `${debeAlgo.length ? `<b class="c">Debe:</b> ${debeAlgo.map(f => esc(f.codigo + ' ' + fmtN(-f.saldo_actual, f.codigo))).join(' · ')}` : '<b class="p">No tiene deudas.</b>'}${favor.length ? ` &nbsp; <b class="p">A su favor:</b> ${favor.map(f => esc(f.codigo + ' ' + fmtN(f.saldo_actual, f.codigo))).join(' · ')}` : ''}`;
+  const hist = rows.slice().reverse();
+  const tabla = `<table><thead><tr><th>Fecha</th><th>Recibo</th><th>Moneda</th><th>Movimiento</th><th class="num">Importe</th><th class="num">Saldo</th><th>Concepto</th></tr></thead><tbody>${hist.map(r => `<tr class="${r.anulado ? 'anul' : ''}"><td class="mut nw">${esc(fecha(r.fecha_movimiento))}</td><td class="nw"><span class="tx">${nRec(r.operacion_id)}</span></td><td><b>${esc(r.moneda_codigo)}</b></td><td><span class="tx">${esc(tipoTx(r.tipo_operacion))}</span></td><td class="num ${cls(r.importe)}"><span class="tx">${esc(fmt(r.importe, r.moneda_codigo, true))}</span></td><td class="num">${esc(fmt(r.saldo_nuevo, r.moneda_codigo))}</td><td class="mut"><span class="tx">${esc(r.concepto)}</span></td></tr>`).join('') || '<tr><td colspan="7" class="empty">Sin movimientos.</td></tr>'}</tbody></table>`;
+  dlg.classList.add('wide');
+  dlg.innerHTML = `<form method="dialog"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start"><div><h2 style="font-size:20px">Estado de cuenta</h2><p class="mut" style="margin:4px 0 0">${esc(cliente.nombre_completo)} · ${esc(cliente.documento)} · al ${esc(fecha(new Date()))}</p></div>
+    <div class="acts"><button type="button" class="sm" id="ecXls">Excel</button><button type="button" class="sm" id="ecPdf">PDF / Imprimir</button><button class="sm" value="x">Cerrar</button></div></div>
+    <div class="prev">${resumen}</div><div class="ecgrid">${tarjetas}</div><h3>Historial completo</h3><div class="scroll" style="max-height:46vh;margin-top:8px">${tabla}</div></form>`;
+  $('#ecPdf').onclick = () => { dlg.close(); imprimir(`<div class="est"><div class="rhead">${encabezado()}<div style="text-align:right"><b>ESTADO DE CUENTA</b><div>Emitido ${esc(fecha(new Date()))}</div></div></div>
+    <p><b>Cliente:</b> ${esc(cliente.nombre_completo)} · <b>Doc.:</b> ${esc(cliente.documento)}${cliente.telefono ? ' · <b>Tel.:</b> ' + esc(cliente.telefono) : ''}</p><p>${resumen}</p>
+    <style>#printArea .ecgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}#printArea .ec{border:1px solid #999;padding:8px;border-radius:0}#printArea .cur{background:#000!important;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}#printArea .prev{border:1px solid #999;padding:6px}</style>
+    <div class="ecgrid">${tarjetas}</div><h3>Historial</h3>${tabla}</div>`); };
+  $('#ecXls').onclick = () => exportarXls(hist.map(r => ({Fecha: fecha(r.fecha_movimiento), Recibo: nRec(r.operacion_id), Moneda: r.moneda_codigo, Movimiento: tipoTx(r.tipo_operacion), Importe: Number(r.importe), Saldo: Number(r.saldo_nuevo), Concepto: r.concepto, Anulado: r.anulado ? 'SÍ' : ''})), `estado_cuenta_${cliente.documento}`);
+  dlg.showModal();
+}
+
+// ===== GANANCIAS (costo promedio) =====
+let gRows = [];
+const isoLocal = d => d.toLocaleDateString('en-CA');
+function periodoG(k) {
+  const h = new Date(), d = new Date(h);
+  if (k === 'mes') d.setDate(1); else if (k === 'ano') { d.setMonth(0, 1); }
+  $('#gDesde').value = isoLocal(d); $('#gHasta').value = isoLocal(h);
+}
+document.querySelectorAll('[data-gp]').forEach(b => b.onclick = () => { periodoG(b.dataset.gp); verGanancias(); });
+$('#gCalc').onclick = () => verGanancias();
+async function verGanancias() {
+  if (!$('#gDesde').value) periodoG('mes');
+  $('#gKpi').innerHTML = '<div class="card kpi mut">Calculando…</div>';
+  let ops, cots;
+  try {
+    [ops, cots] = await Promise.all([
+      traerTodo(() => sb.from('v_operaciones').select('id,fecha,nombre_completo,anulada,movimientos').eq('tipo', 'ARBITRAJE').order('id')),
+      traerTodo(() => sb.from('cotizaciones').select('moneda_codigo,compra,venta,fecha').order('fecha'))
+    ]);
+  } catch (er) { return toast(errMsg(er), true); }
+  const cotAt = (m, f, lado) => { let r = null; for (const c of cots) { if (c.moneda_codigo !== m) continue; if (!r || c.fecha <= f) r = c; if (c.fecha > f) break; } return r ? Number(r[lado]) : null; };
+  const inv = {}, out = []; let sinDato = 0;
+  for (const o of ops) {
+    if (o.anulada) continue;
+    const mv = o.movimientos || [], sa = mv.find(m => m.tipo === 'ARBITRAJE_SALIDA'), en = mv.find(m => m.tipo === 'ARBITRAJE_ENTRADA');
+    if (!sa || !en) continue;
+    const mo = sa.moneda, qo = Math.abs(Number(sa.importe)), md = en.moneda, qd = Math.abs(Number(en.importe));
+    let valor = mo === 'PYG' ? qo : md === 'PYG' ? qd : (cotAt(mo, o.fecha, 'compra') ? qo * cotAt(mo, o.fecha, 'compra') : cotAt(md, o.fecha, 'venta') ? qd * cotAt(md, o.fecha, 'venta') : null);
+    if (valor == null) { sinDato++; continue; }
+    if (mo !== 'PYG') {   // la casa compra la moneda que entrega el cliente
+      const s = inv[mo] ||= {qty:0, cost:0}; s.qty += qo; s.cost += valor;
+      out.push({id:o.id, fecha:o.fecha, cliente:o.nombre_completo, tipo:'COMPRA', moneda:mo, qty:qo, precio:valor / qo, costo:null, gan:null, valor});
+    }
+    if (md !== 'PYG') {   // la casa vende la moneda que recibe el cliente
+      const s = inv[md] ||= {qty:0, cost:0};
+      const prom = s.qty > 0 ? s.cost / s.qty : (cotAt(md, o.fecha, 'compra') ?? valor / qd);
+      const costo = prom * qd, gan = valor - costo;
+      s.qty -= qd; s.cost -= costo; if (s.qty <= 1e-9) { s.qty = 0; s.cost = 0; }
+      out.push({id:o.id, fecha:o.fecha, cliente:o.nombre_completo, tipo:'VENTA', moneda:md, qty:qd, precio:valor / qd, costo:prom, gan, valor});
+    }
+  }
+  const d0 = new Date($('#gDesde').value + 'T00:00:00'), d1 = new Date(($('#gHasta').value || isoLocal(new Date())) + 'T23:59:59.999');
+  gRows = out.filter(r => { const f = new Date(r.fecha); return f >= d0 && f <= d1; });
+  const total = gRows.reduce((t, r) => t + (r.gan || 0), 0);
+  const porMon = {};
+  gRows.forEach(r => { const p = porMon[r.moneda] ||= {cq:0, cv:0, vq:0, vv:0, gan:0}; if (r.tipo === 'COMPRA') { p.cq += r.qty; p.cv += r.valor; } else { p.vq += r.qty; p.vv += r.valor; p.gan += r.gan; } });
+  const gs = n => (n < 0 ? '−' : '') + 'Gs. ' + Math.abs(Math.round(n)).toLocaleString('es-PY');
+  $('#gKpi').innerHTML = `<div class="card kpi" style="grid-column:span 2"><span class="mut">Ganancia del período</span><div class="big num ${total >= 0 ? 'p' : 'c'}" style="text-align:left;margin-top:6px">${esc(gs(total))}</div><div class="s"><span>${gRows.filter(r => r.tipo === 'VENTA').length} ventas · ${gRows.filter(r => r.tipo === 'COMPRA').length} compras de divisas</span></div></div>` +
+    ordenar(Object.entries(porMon).map(([codigo, p]) => ({codigo, ...p}))).map(p => { const st = inv[p.codigo]; return `<div class="card kpi"><div class="h"><span class="cur">${esc(p.codigo)}</span><div><b>${esc(mon(p.codigo).nombre)}</b></div></div>
+      <div class="v num ${p.gan >= 0 ? 'p' : 'c'}" style="text-align:left">${esc(gs(p.gan))}</div>
+      <div class="s"><span>Compró ${esc(fmtN(p.cq, p.codigo))} · vendió ${esc(fmtN(p.vq, p.codigo))}</span></div>
+      <div class="s" style="margin-top:2px"><span>Stock ${esc(fmtN(st ? st.qty : 0, p.codigo))}${st && st.qty ? ` · costo prom. ${esc(fmtT(+(st.cost / st.qty).toFixed(2)))}` : ''}</span></div></div>`; }).join('');
+  $('#gNota').textContent = sinDato ? `${sinDato} cruce(s) entre monedas extranjeras sin cotización cargada no se incluyeron` : 'Las ventas sin stock previo usan la cotización de compra del día como costo';
+  $('#gTab').innerHTML = `<thead><tr><th>Fecha</th><th>Recibo</th><th>Cliente</th><th>Operación</th><th class="num">Cantidad</th><th class="num">Precio (Gs.)</th><th class="num">Costo prom.</th><th class="num">Ganancia</th></tr></thead><tbody>` +
+    (gRows.length ? gRows.slice().reverse().map(r => `<tr><td class="mut nw">${esc(fecha(r.fecha))}</td><td class="nw"><a href="#" data-rec="${Number(r.id)}">${nRec(r.id)}</a></td><td>${esc(r.cliente)}</td>
+      <td><span class="badge ${r.tipo === 'COMPRA' ? 'b' : 'g'}">${r.tipo === 'COMPRA' ? 'Compra' : 'Venta'}</span> ${esc(r.moneda)}</td><td class="num">${esc(fmtN(r.qty, r.moneda))}</td><td class="num">${esc(fmtT(+r.precio.toFixed(2)))}</td>
+      <td class="num mut">${r.costo == null ? '—' : esc(fmtT(+r.costo.toFixed(2)))}</td><td class="num ${r.gan == null ? '' : r.gan >= 0 ? 'p' : 'c'}"><b>${r.gan == null ? '' : esc(gs(r.gan))}</b></td></tr>`).join('')
+     : '<tr><td colspan="8" class="empty">Sin cruces de moneda en este período.</td></tr>') + '</tbody>';
+}
+$('#gXls').onclick = () => exportarXls(gRows.map(r => ({Fecha: fecha(r.fecha), Recibo: nRec(r.id), Cliente: r.cliente, Operacion: r.tipo, Moneda: r.moneda, Cantidad: r.qty, 'Precio Gs': Math.round(r.precio * 100) / 100, 'Costo promedio': r.costo == null ? '' : Math.round(r.costo * 100) / 100, 'Ganancia Gs': r.gan == null ? '' : Math.round(r.gan)})), `ganancias_${$('#gDesde').value}_${$('#gHasta').value}`);
 
 // ===== MANTENIMIENTO =====
 $('#btnDemo').onclick = () => abrirDlg(`<h2>Cargar datos de demostración</h2>
