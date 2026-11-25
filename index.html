@@ -1453,9 +1453,11 @@ $('#fCv').addEventListener('input', e => { if (e.target.id === 'cvCot') cvCotMan
 $('#cvLote').addEventListener('change', () => { const l = cvM && cvM.lotes.find(x => x.ref === $('#cvLote').value); if (l && !(parseNum($('#cvQty').value) > 0)) $('#cvQty').value = fmtT(l.rem); cvCalc(); });
 // Taxa: se recuerda la última usada por moneda y tipo (Pix arranca en 5 %)
 const taxaPix = () => casa.taxa_pix != null ? Number(casa.taxa_pix) : 5;
-function cvPago() { const m = $('#cvMon').value, ok = !['BRL', 'PIX'].includes(m); $('#cvPagBox').classList.toggle('hide', !ok); if (!ok) $('#cvPag').value = 'PYG'; return $('#cvPag').value; }
+// Opciones combinadas del selector de moneda: 'USD|BRL' = Dólar por Reales, 'USD|PIX' = Dólar por Pix
+const cvMonC = () => $('#cvMon').value.split('|')[0];
+function cvPago() { const [m, fija] = $('#cvMon').value.split('|'), ok = !fija && !['BRL', 'PIX'].includes(m); $('#cvPagBox').classList.toggle('hide', !ok); if (fija) $('#cvPag').value = fija; else if (!ok) $('#cvPag').value = 'PYG'; return $('#cvPag').value; }
 function cvTaxa() {
-  const m = $('#cvMon').value, mp = cvPago(), t = (store.get('cmm_taxa') || {})[cvTipo + m + mp];
+  const m = cvMonC(), mp = cvPago(), t = (store.get('cmm_taxa') || {})[cvTipo + m + mp];
   if (m === 'PIX' || mp === 'PIX') { $('#cvTax').value = fmtT(taxaPix()); $('#cvMet').value = 'PIX'; }
   else $('#cvTax').value = t != null && t ? fmtT(t) : '';
   if (m === 'UST') $('#cvMet').value = 'USDT';
@@ -1463,7 +1465,7 @@ function cvTaxa() {
 function cvLotes() {
   const ven = cvTipo === 'VENTA'; $('#cvLoteBox').classList.toggle('hide', !ven);
   if (!ven || !cvM) return;
-  const m = $('#cvMon').value, ab = cvM.lotes.filter(l => l.m === m && l.rem > 1e-9), prev = $('#cvLote').value;
+  const m = cvMonC(), ab = cvM.lotes.filter(l => l.m === m && l.rem > 1e-9), prev = $('#cvLote').value;
   $('#cvLote').innerHTML = `<option value="">Automático · la compra más antigua primero</option>` + ab.map(l => `<option value="${esc(l.ref)}" ${l.src === 'CRUCE' ? 'disabled' : ''}>${esc(nLote(l))} · ${esc(fCorta(l.fecha))} · compró a ${esc(fmtT(+l.cu.toFixed(2)))} · quedan ${esc(fmtN(l.rem, m))}${l.src === 'CRUCE' ? ' (cruce)' : ''}</option>`).join('');
   if ([...$('#cvLote').options].some(o => o.value === prev)) $('#cvLote').value = prev;
   $('#cvLoteHint').textContent = ab.length ? `${ab.length} compra${ab.length === 1 ? '' : 's'} con stock de ${m}.` : `Sin compras con stock de ${m}.`;
@@ -1478,7 +1480,7 @@ function cotSug(m, mp, lado) {
 const cotGsCompra = m => cotiz[m] ? Number(cotiz[m].compra) : (m === 'PIX' && cotiz.BRL ? Number(cotiz.BRL.compra) : null);
 function cvCalc() {
   if (!monedas.length) return;
-  const m = $('#cvMon').value, mp = cvPago(), c = cotiz[m], lado = cvTipo === 'COMPRA' ? 'compra' : 'venta', enGs = mp === 'PYG';
+  const m = cvMonC(), mp = cvPago(), c = cotiz[m], lado = cvTipo === 'COMPRA' ? 'compra' : 'venta', enGs = mp === 'PYG';
   const sug = cotSug(m, mp, lado);
   if (!cvCotManual) $('#cvCot').value = sug ? fmtT(+sug.toFixed(enGs ? 2 : 4)) : '';
   $('#cvCotLbl').textContent = enGs ? 'Cotización (Gs. por unidad)' : `Cotización (R$ por 1 ${cc(m)})`;
@@ -1505,7 +1507,8 @@ function cvCalc() {
   $('#cvTot').innerHTML = `<span class="mut">${cvTipo === 'COMPRA' ? 'La casa paga al cliente' : 'La casa cobra al cliente'}</span><div class="big num" style="text-align:left">${esc(fm(totP || 0))}</div>${q > 0 ? `<div class="mut">${esc(fmtN(q, m))} ${esc(cc(m))} × ${esc(fmtT(t || 0))}${!enGs && valGs ? ` · equivale a ${esc(fmtGs(valGs))}` : ''}</div>` : ''}${tl}${extra}`;
 }
 async function verCompraVenta() {
-  if (!$('#cvMon').options.length) $('#cvMon').innerHTML = monedas.filter(m => m.codigo !== 'PYG').map(m => `<option value="${esc(m.codigo)}">${esc(cc(m.codigo))} · ${esc(m.nombre)}</option>`).join('');
+  if (!$('#cvMon').options.length) $('#cvMon').innerHTML = monedas.filter(m => m.codigo !== 'PYG').map(m => `<option value="${esc(m.codigo)}">${esc(cc(m.codigo))} · ${esc(m.nombre)}</option>`).join('') +
+    '<optgroup label="Dólar por Reales"><option value="USD|BRL">USD x R$ · Dólar por Reales (efectivo)</option><option value="USD|PIX">USD x Pix · Dólar por Pix</option></optgroup>';
   if (!$('#cvFecha').value) { $('#cvFecha').value = isoLocal(new Date()); cvTaxa(); }
   cvCalc();
   try { cvM = await cargarMotor(); } catch (er) { return toast(errMsg(er), true); }
@@ -1537,7 +1540,7 @@ function pintarCvTab() {
 $('#cvXls').onclick = () => { if (!cvM) return; const gan = {}; cvM.rows.filter(r => r.src === 'MOSTRADOR').forEach(r => gan[r.id] = r.gan); exportarXls(cvRows.map(c => ({Comprobante: nCv(c.id), Fecha: fecha(c.fecha), Operacion: c.tipo, Moneda: c.moneda_codigo, Cantidad: Number(c.cantidad), Cotizacion: Number(c.cotizacion), 'Total Gs': Number(c.total_gs), 'Ganancia Gs': c.anulada || gan[c.id] == null ? '' : Math.round(gan[c.id]), Cliente: c.cliente_nombre || '', Documento: c.cliente_doc || '', 'Taxa %': Number(c.taxa_pct || 0), 'Pagado en': c.moneda_pago || 'PYG', 'Total pagado': c.moneda_pago && c.moneda_pago !== 'PYG' ? Number(c.total_pago) : Number(c.total_gs), 'Compra origen': c.lote_id ? nCv(c.lote_id) : '', Pago: c.metodo_pago, Usuario: usr(c.usuario_registro), Anulada: c.anulada ? 'SÍ' : ''})), `compra_venta_${$('#cvFecha').value}`); };
 $('#fCv').onsubmit = async e => {
   e.preventDefault();
-  const m = $('#cvMon').value, q = parseNum($('#cvQty').value, m), t = parseNum($('#cvCot').value), tx = parseNum($('#cvTax').value) || 0;
+  const m = cvMonC(), q = parseNum($('#cvQty').value, m), t = parseNum($('#cvCot').value), tx = parseNum($('#cvTax').value) || 0;
   if (!(q > 0)) return toast('Ingrese la cantidad', true);
   if (tx < 0 || tx >= 100) return toast('Taxa inválida', true);
   const lote = cvTipo === 'VENTA' && $('#cvLote').value.startsWith('MOSTRADOR:') ? Number($('#cvLote').value.split(':')[1]) : null;
