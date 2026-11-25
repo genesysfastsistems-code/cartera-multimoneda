@@ -176,6 +176,14 @@ button.danger.solid{background:var(--cob);border-color:var(--cob);color:#fff}
 .stk{display:grid;gap:10px}
 .stk .row{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:11px}
 .stk .row>div{flex:1}.stk .row b{font-size:16px}
+.acw{position:relative}
+.sug{position:absolute;z-index:6;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgb(15 23 42/.14);padding:4px;max-height:310px;overflow:auto}
+.sug button{display:flex;width:100%;flex-direction:column;align-items:flex-start;gap:0;border:0;min-height:44px;padding:6px 10px;text-align:left;font-weight:600}
+.sug button span{font-weight:400;font-size:12.5px;color:var(--mut)}
+.sug button:hover,.sug button.act{background:var(--acc2)}
+.sug .nuevo{color:var(--acc);border-top:1px solid var(--line);border-radius:0 0 8px 8px}
+.selcli{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #b9cdf3;background:var(--acc2);border-radius:10px}
+.selcli>div{flex:1}.selcli b{display:block}
 dialog.wide{width:min(1000px,96vw)}
 .big{font-size:clamp(26px,3vw,34px);font-weight:700;letter-spacing:-.02em}
 .savebar{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:#fbfcfe;flex-wrap:wrap}
@@ -337,8 +345,11 @@ dialog.wide{width:min(1000px,96vw)}
           <div class="two"><div><label for="cvMon">Moneda</label><select id="cvMon"></select></div><div><label for="cvQty">Cantidad</label><input id="cvQty" inputmode="decimal" required placeholder="0"></div></div>
           <label for="cvCot">Cotización (Gs. por unidad)</label><input id="cvCot" inputmode="decimal" required>
           <div class="hint" id="cvHint"></div>
-          <div class="two"><div><label for="cvCli">Cliente (opcional)</label><input id="cvCli" maxlength="120" placeholder="Nombre"></div><div><label for="cvDoc">Documento (opcional)</label><input id="cvDoc" maxlength="30"></div></div>
-          <div class="two"><div><label for="cvMet">Pago</label><select id="cvMet"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>CHEQUE</option></select></div><div><label for="cvCon">Nota (opcional)</label><input id="cvCon" maxlength="200"></div></div>
+          <label for="cvCli">Cliente</label>
+          <div class="acw" id="cvCliBox"><input id="cvCli" maxlength="120" placeholder="Buscar en su cartera por nombre o documento…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="cvSug"><div class="sug hide" id="cvSug" role="listbox"></div></div>
+          <div class="selcli hide" id="cvSel"></div>
+          <div class="two"><div id="cvDocBox"><label for="cvDoc">Documento (opcional)</label><input id="cvDoc" maxlength="30"></div><div><label for="cvMet">Pago</label><select id="cvMet"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>CHEQUE</option></select></div></div>
+          <label for="cvCon">Nota (opcional)</label><input id="cvCon" maxlength="200">
           <div class="totbox" id="cvTot"></div>
           <button class="pri" id="cvOk" style="width:100%;margin-top:14px;min-height:48px;font-size:15.5px">Registrar compra</button>
         </form>
@@ -812,8 +823,8 @@ function dlgEliminarCliente() {
   }, null, conSaldo.length ? 'Entendido' : 'Eliminar cliente');
   if (!conSaldo.length) $('#dOk').classList.add('danger', 'solid'); else $('#dOk').classList.remove('pri');
 }
-function dlgCliente(c) {
-  const nuevo = !c; c = c || {tipo_persona:'FISICA', activo:true};
+function dlgCliente(c, opts = {}) {
+  const nuevo = !c; c = c || {tipo_persona:'FISICA', activo:true, nombre_completo: opts.nombre || ''};
   abrirDlg(`<h2>${nuevo ? 'Nuevo cliente' : 'Editar cliente'}</h2>
     <div class="two"><div><label for="kTipo">Tipo de persona</label><select id="kTipo" ${nuevo ? '' : 'disabled'}><option value="FISICA">Física</option><option value="JURIDICA" ${c.tipo_persona === 'JURIDICA' ? 'selected' : ''}>Jurídica</option></select></div>
     <div><label for="kDoc">CI / RUC / Pasaporte</label><input id="kDoc" required maxlength="30" value="${esc(c.documento)}" ${nuevo ? '' : 'readonly'}></div></div>
@@ -824,6 +835,7 @@ function dlgCliente(c) {
   async () => {
     if (nuevo) {
       const id = await q(sb.rpc('api_crear_cliente', {p_tipo: $('#kTipo').value, p_nombre: $('#kNom').value, p_documento: $('#kDoc').value, p_telefono: $('#kTel').value, p_direccion: $('#kDir').value, p_observaciones: $('#kObs').value}));
+      if (opts.onCreated) { opts.onCreated({id, nombre_completo: $('#kNom').value.trim(), documento: $('#kDoc').value.trim().toUpperCase(), activo: true}); toast('Cliente registrado y seleccionado'); buscar(); return; }
       toast('Cliente registrado'); $('#q').value = ''; await buscar(); await abrir(id);
     } else {
       await q(sb.rpc('api_actualizar_cliente', {p_id: c.id, p_nombre: $('#kNom').value, p_telefono: $('#kTel').value, p_direccion: $('#kDir').value, p_observaciones: $('#kObs').value, p_activo: $('#kAct').checked}));
@@ -1401,8 +1413,8 @@ $('#fCv').onsubmit = async e => {
   if (!(t > 0)) return toast('Ingrese la cotización', true);
   const b = $('#cvOk'); b.disabled = true;
   try {
-    const id = await q_(sb.rpc('api_registrar_cambio', {p_tipo: cvTipo, p_moneda: m, p_cantidad: q, p_cotizacion: t, p_cliente_nombre: $('#cvCli').value, p_cliente_doc: $('#cvDoc').value, p_metodo: $('#cvMet').value, p_concepto: $('#cvCon').value}));
-    ['#cvQty', '#cvCli', '#cvDoc', '#cvCon'].forEach(k => $(k).value = ''); cvCotManual = false;
+    const id = await q_(sb.rpc('api_registrar_cambio', {p_tipo: cvTipo, p_moneda: m, p_cantidad: q, p_cotizacion: t, p_cliente_nombre: cvCliente ? null : $('#cvCli').value, p_cliente_doc: cvCliente ? null : $('#cvDoc').value, p_metodo: $('#cvMet').value, p_concepto: $('#cvCon').value, p_cliente_id: cvCliente ? cvCliente.id : null}));
+    ['#cvQty', '#cvCli', '#cvDoc', '#cvCon'].forEach(k => $(k).value = ''); cvCotManual = false; elegirCliente(null);
     await verCompraVenta();
     const r = cvM.rows.find(x => x.src === 'MOSTRADOR' && x.id === id);
     dlg.classList.remove('wide');
@@ -1414,6 +1426,48 @@ $('#fCv').onsubmit = async e => {
   } catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
 };
 const q_ = q;
+// Buscador de clientes de la cartera
+let cvCliente = null, cvSugT = 0, cvSugList = [];
+function elegirCliente(c) {
+  cvCliente = c;
+  $('#cvCliBox').classList.toggle('hide', !!c); $('#cvDocBox').classList.toggle('hide', !!c); $('#cvSel').classList.toggle('hide', !c);
+  $('#cvSug').classList.add('hide');
+  if (c) {
+    $('#cvSel').innerHTML = `<span class="cur" style="border-radius:50%">${esc(iniciales(c.nombre_completo))}</span><div><b>${esc(c.nombre_completo)}</b><span class="mut">${esc(c.documento)} · cliente de la cartera</span></div><button type="button" class="sm" id="cvCamb">Cambiar</button>`;
+    $('#cvCamb').onclick = () => { elegirCliente(null); $('#cvCli').value = ''; $('#cvCli').focus(); };
+  }
+}
+function pintarSug(txt) {
+  const nuevo = `<button type="button" class="nuevo" data-nuevo="1">+ Registrar ${txt ? `«${esc(txt)}»` : ''} como cliente nuevo<span>Se agrega a la cartera y queda seleccionado</span></button>`;
+  $('#cvSug').innerHTML = (cvSugList.length ? cvSugList.map((c, i) => `<button type="button" role="option" data-i="${i}" class="${i === 0 ? 'act' : ''}">${esc(c.nombre_completo)}<span>${esc(c.documento)}${c.activo ? '' : ' · inactivo'}</span></button>`).join('') : (txt ? '<p class="mut" style="margin:8px 10px">No está en la cartera.</p>' : '')) + nuevo;
+  $('#cvSug').classList.remove('hide');
+}
+$('#cvCli').addEventListener('input', () => {
+  clearTimeout(cvSugT);
+  const t = $('#cvCli').value.replace(/[,()%*]/g, ' ').trim();
+  if (t.length < 2) { cvSugList = []; t ? pintarSug(t) : $('#cvSug').classList.add('hide'); return; }
+  cvSugT = setTimeout(async () => {
+    try {
+      cvSugList = await q(sb.from('clientes').select('id,nombre_completo,documento,activo').eq('eliminado', false).or(`nombre_completo.ilike.%${t}%,documento.ilike.%${t}%`).order('nombre_completo').limit(7));
+      if ($('#cvCli').value.trim()) pintarSug($('#cvCli').value.trim());
+    } catch (er) { toast(errMsg(er), true); }
+  }, 220);
+});
+$('#cvCli').addEventListener('focus', () => { if ($('#cvCli').value.trim()) pintarSug($('#cvCli').value.trim()); });
+$('#cvCli').addEventListener('keydown', e => {
+  const items = [...$('#cvSug').querySelectorAll('button')];
+  if ($('#cvSug').classList.contains('hide') || !items.length) return;
+  let i = items.findIndex(b => b.classList.contains('act'));
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); i = (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length; items.forEach((b, k) => b.classList.toggle('act', k === i)); items[i].scrollIntoView({block: 'nearest'}); }
+  else if (e.key === 'Enter') { e.preventDefault(); (items[i] || items[0]).click(); }
+  else if (e.key === 'Escape') $('#cvSug').classList.add('hide');
+});
+document.addEventListener('mousedown', e => { if (!e.target.closest('#cvCliBox')) $('#cvSug').classList.add('hide'); });
+$('#cvSug').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.nuevo) { $('#cvSug').classList.add('hide'); dlgCliente(null, {nombre: $('#cvCli').value.trim(), onCreated: elegirCliente}); }
+  else elegirCliente(cvSugList[Number(b.dataset.i)]);
+});
 function dlgAnularCambio(c) {
   if (!c) return;
   abrirDlg(`<h2>Anular ${nCv(c.id)}</h2><div class="prev">${c.tipo === 'COMPRA' ? 'Compra' : 'Venta'} de <b>${esc(fmtN(c.cantidad, c.moneda_codigo))} ${esc(c.moneda_codigo)}</b> a ${esc(fmtT(c.cotizacion))} = <b>${esc(fmtGs(c.total_gs))}</b></div>
