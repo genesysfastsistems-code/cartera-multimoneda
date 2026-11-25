@@ -168,6 +168,14 @@ button.danger.solid{background:var(--cob);border-color:var(--cob);color:#fff}
 .ec dl{display:grid;grid-template-columns:1fr auto;gap:4px 10px;margin:0;font-size:13.5px}.ec dt{color:var(--mut)}.ec dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ec .tot{border-top:1px solid var(--line);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .ec .tot b{font-size:18px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#eef2f7;border-radius:11px;padding:4px}
+.seg button{border:0;background:transparent;min-height:44px;font-size:14.5px}
+.seg button.on{background:#fff;box-shadow:var(--sh)}.seg button.on.cp{color:var(--pag)}.seg button.on.vt{color:var(--ok)}
+.totbox{margin-top:16px;padding:16px;border-radius:12px;background:var(--side);color:#fff}
+.totbox .mut{color:#9fb2cf}.totbox .big{color:#fff}
+.stk{display:grid;gap:10px}
+.stk .row{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:11px}
+.stk .row>div{flex:1}.stk .row b{font-size:16px}
 dialog.wide{width:min(1000px,96vw)}
 .big{font-size:clamp(26px,3vw,34px);font-weight:700;letter-spacing:-.02em}
 .savebar{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:#fbfcfe;flex-wrap:wrap}
@@ -320,6 +328,28 @@ dialog.wide{width:min(1000px,96vw)}
       <div class="card" style="margin-top:18px"><div class="fbar"><div><label for="fDia">Fecha</label><input id="fDia" type="date"></div><button id="btnDia">Ver</button></div><div class="scroll"><table id="tDia"></table></div></div>
     </section>
 
+    <!-- COMPRA / VENTA -->
+    <section data-v="compraventa" class="hide">
+      <div class="top"><div><h1>Compra y venta de divisas</h1><p class="mut">Operaciones de mostrador. Cada compra suma stock a su costo; cada venta calcula la ganancia contra el costo promedio.</p></div></div>
+      <div class="grid2">
+        <form class="card pad" id="fCv" autocomplete="off">
+          <div class="seg"><button type="button" class="on cp" data-cvt="COMPRA">Compra <span class="mut" style="font-weight:500">· la casa compra</span></button><button type="button" class="vt" data-cvt="VENTA">Venta <span class="mut" style="font-weight:500">· la casa vende</span></button></div>
+          <div class="two"><div><label for="cvMon">Moneda</label><select id="cvMon"></select></div><div><label for="cvQty">Cantidad</label><input id="cvQty" inputmode="decimal" required placeholder="0"></div></div>
+          <label for="cvCot">Cotización (Gs. por unidad)</label><input id="cvCot" inputmode="decimal" required>
+          <div class="hint" id="cvHint"></div>
+          <div class="two"><div><label for="cvCli">Cliente (opcional)</label><input id="cvCli" maxlength="120" placeholder="Nombre"></div><div><label for="cvDoc">Documento (opcional)</label><input id="cvDoc" maxlength="30"></div></div>
+          <div class="two"><div><label for="cvMet">Pago</label><select id="cvMet"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>CHEQUE</option></select></div><div><label for="cvCon">Nota (opcional)</label><input id="cvCon" maxlength="200"></div></div>
+          <div class="totbox" id="cvTot"></div>
+          <button class="pri" id="cvOk" style="width:100%;margin-top:14px;min-height:48px;font-size:15.5px">Registrar compra</button>
+        </form>
+        <div class="stackc">
+          <div class="card"><div class="chead"><h2>Stock de divisas</h2><span class="mut">a costo promedio</span></div><div class="pad stk" id="cvStock"></div></div>
+          <div class="card"><div class="chead"><h2>Resumen del día</h2></div><div class="pad" id="cvDia"></div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px"><div class="chead"><h2>Operaciones</h2><div class="acts"><input type="date" id="cvFecha" style="min-height:36px;width:auto"><button class="sm" id="cvXls">Excel</button></div></div><div class="scroll"><table id="cvTab"></table></div></div>
+    </section>
+
     <!-- GANANCIAS -->
     <section data-v="ganancias" class="hide">
       <div class="top"><div><h1>Ganancias por cambio</h1><p class="mut">Calculadas por costo promedio: lo que se vende se compara con lo que costó comprar esa moneda. Expresadas en guaraníes.</p></div><button id="gXls">Exportar Excel</button></div>
@@ -395,11 +425,12 @@ const I = {
   usuarios:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.2-6 8-6s7 2 8 6"/>',
   ajustes:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   ok:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  cambio:'<path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/>',
   ganancias:'<circle cx="12" cy="12" r="9"/><path d="M14.8 9.2c-.5-.9-1.6-1.4-2.8-1.4-1.6 0-2.8.8-2.8 2.1 0 3 5.7 1.6 5.7 4.3 0 1.3-1.2 2.2-2.9 2.2-1.3 0-2.4-.6-2.9-1.5M12 6.3v1.5M12 16.8v1.5"/>'
 };
 const ico = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
 const RUTAS = [
-  {id:'inicio', t:'Inicio'}, {id:'clientes', t:'Clientes'}, {id:'cotizaciones', t:'Cotizaciones'},
+  {id:'inicio', t:'Inicio'}, {id:'clientes', t:'Clientes'}, {id:'compraventa', t:'Compra / Venta', ico:'cambio'}, {id:'cotizaciones', t:'Cotizaciones'},
   {id:'posicion', t:'Posición y día'}, {id:'ganancias', t:'Ganancias', sup:true}, {id:'auditoria', t:'Auditoría'},
   {id:'usuarios', t:'Usuarios', admin:true}, {id:'ajustes', t:'Datos de la casa', admin:true}
 ];
@@ -542,7 +573,7 @@ function ruta() {
   if (!rutasAct.find(x => x.id === r)) r = rutasAct[0].id;
   document.querySelectorAll('#menu a').forEach(a => a.classList.toggle('on', a.dataset.r === r));
   document.querySelectorAll('main>section').forEach(s => s.classList.toggle('hide', s.dataset.v !== r));
-  ({inicio: verInicio, ganancias: verGanancias, cotizaciones: verCotiz, posicion: verPosicion, auditoria: verAuditoria, usuarios: verUsuarios, ajustes: verAjustes,
+  ({inicio: verInicio, ganancias: verGanancias, compraventa: verCompraVenta, cotizaciones: verCotiz, posicion: verPosicion, auditoria: verAuditoria, usuarios: verUsuarios, ajustes: verAjustes,
     'dev-panel': devPanel, 'dev-empresas': devEmpresas, 'dev-pagos': devPagos, 'dev-ajustes': devAjustes}[r] || (() => {}))();
   scrollTo(0, 0);
 }
@@ -1235,7 +1266,51 @@ async function estadoCuenta() {
   dlg.showModal();
 }
 
-// ===== GANANCIAS (costo promedio) =====
+// ===== MOTOR DE INVENTARIO (costo promedio) =====
+async function cargarMotor() {
+  const [ops, cots, cams] = await Promise.all([
+    traerTodo(() => sb.from('v_operaciones').select('id,fecha,nombre_completo,anulada,movimientos').eq('tipo', 'ARBITRAJE').order('id')),
+    traerTodo(() => sb.from('cotizaciones').select('moneda_codigo,compra,venta,fecha').order('fecha')),
+    traerTodo(() => sb.from('cambios').select('*').order('fecha'))
+  ]);
+  const cotAt = (m, f, lado) => { let r = null; for (const c of cots) { if (c.moneda_codigo !== m) continue; if (!r || c.fecha <= f) r = c; if (c.fecha > f) break; } return r ? Number(r[lado]) : null; };
+  const ev = []; let sinDato = 0;
+  for (const o of ops) {
+    if (o.anulada) continue;
+    const mv = o.movimientos || [], sa = mv.find(m => m.tipo === 'ARBITRAJE_SALIDA'), en = mv.find(m => m.tipo === 'ARBITRAJE_ENTRADA');
+    if (!sa || !en) continue;
+    const mo = sa.moneda, qo = Math.abs(Number(sa.importe)), md = en.moneda, qd = Math.abs(Number(en.importe));
+    const cpo = cotAt(mo, o.fecha, 'compra'), vtd = cotAt(md, o.fecha, 'venta');
+    const valor = mo === 'PYG' ? qo : md === 'PYG' ? qd : cpo ? qo * cpo : vtd ? qd * vtd : null;
+    if (valor == null) { sinDato++; continue; }
+    ev.push({src:'CRUCE', id:o.id, fecha:o.fecha, cliente:o.nombre_completo, compra: mo !== 'PYG' ? {m:mo, q:qo} : null, venta: md !== 'PYG' ? {m:md, q:qd} : null, valor});
+  }
+  for (const c of cams) {
+    if (c.anulada) continue;
+    const x = {m:c.moneda_codigo, q:Number(c.cantidad)};
+    ev.push({src:'MOSTRADOR', id:c.id, fecha:c.fecha, cliente:c.cliente_nombre || '', compra: c.tipo === 'COMPRA' ? x : null, venta: c.tipo === 'VENTA' ? x : null, valor:Number(c.total_gs)});
+  }
+  ev.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  const inv = {}, rows = [];
+  for (const e of ev) {
+    if (e.compra) {
+      const st = inv[e.compra.m] ||= {qty:0, cost:0}; st.qty += e.compra.q; st.cost += e.valor;
+      rows.push({src:e.src, id:e.id, fecha:e.fecha, cliente:e.cliente, tipo:'COMPRA', moneda:e.compra.m, qty:e.compra.q, precio:e.valor / e.compra.q, costo:null, gan:null, valor:e.valor});
+    }
+    if (e.venta) {
+      const st = inv[e.venta.m] ||= {qty:0, cost:0}, q = e.venta.q;
+      const prom = st.qty > 0 ? st.cost / st.qty : (cotAt(e.venta.m, e.fecha, 'compra') ?? e.valor / q);
+      const costo = prom * q, gan = e.valor - costo;
+      st.qty -= q; st.cost -= costo; if (st.qty <= 1e-9) { st.qty = 0; st.cost = 0; }
+      rows.push({src:e.src, id:e.id, fecha:e.fecha, cliente:e.cliente, tipo:'VENTA', moneda:e.venta.m, qty:q, precio:e.valor / q, costo:prom, gan, valor:e.valor});
+    }
+  }
+  return {rows, inv, cams, sinDato, cotAt};
+}
+const gsF = n => (n < 0 ? '−' : '') + 'Gs. ' + Math.abs(Math.round(n)).toLocaleString('es-PY');
+const nCv = id => 'C-' + String(id).padStart(6, '0');
+
+// ===== GANANCIAS =====
 let gRows = [];
 const isoLocal = d => d.toLocaleDateString('en-CA');
 function periodoG(k) {
@@ -1248,53 +1323,121 @@ $('#gCalc').onclick = () => verGanancias();
 async function verGanancias() {
   if (!$('#gDesde').value) periodoG('mes');
   $('#gKpi').innerHTML = '<div class="card kpi mut">Calculando…</div>';
-  let ops, cots;
-  try {
-    [ops, cots] = await Promise.all([
-      traerTodo(() => sb.from('v_operaciones').select('id,fecha,nombre_completo,anulada,movimientos').eq('tipo', 'ARBITRAJE').order('id')),
-      traerTodo(() => sb.from('cotizaciones').select('moneda_codigo,compra,venta,fecha').order('fecha'))
-    ]);
-  } catch (er) { return toast(errMsg(er), true); }
-  const cotAt = (m, f, lado) => { let r = null; for (const c of cots) { if (c.moneda_codigo !== m) continue; if (!r || c.fecha <= f) r = c; if (c.fecha > f) break; } return r ? Number(r[lado]) : null; };
-  const inv = {}, out = []; let sinDato = 0;
-  for (const o of ops) {
-    if (o.anulada) continue;
-    const mv = o.movimientos || [], sa = mv.find(m => m.tipo === 'ARBITRAJE_SALIDA'), en = mv.find(m => m.tipo === 'ARBITRAJE_ENTRADA');
-    if (!sa || !en) continue;
-    const mo = sa.moneda, qo = Math.abs(Number(sa.importe)), md = en.moneda, qd = Math.abs(Number(en.importe));
-    let valor = mo === 'PYG' ? qo : md === 'PYG' ? qd : (cotAt(mo, o.fecha, 'compra') ? qo * cotAt(mo, o.fecha, 'compra') : cotAt(md, o.fecha, 'venta') ? qd * cotAt(md, o.fecha, 'venta') : null);
-    if (valor == null) { sinDato++; continue; }
-    if (mo !== 'PYG') {   // la casa compra la moneda que entrega el cliente
-      const s = inv[mo] ||= {qty:0, cost:0}; s.qty += qo; s.cost += valor;
-      out.push({id:o.id, fecha:o.fecha, cliente:o.nombre_completo, tipo:'COMPRA', moneda:mo, qty:qo, precio:valor / qo, costo:null, gan:null, valor});
-    }
-    if (md !== 'PYG') {   // la casa vende la moneda que recibe el cliente
-      const s = inv[md] ||= {qty:0, cost:0};
-      const prom = s.qty > 0 ? s.cost / s.qty : (cotAt(md, o.fecha, 'compra') ?? valor / qd);
-      const costo = prom * qd, gan = valor - costo;
-      s.qty -= qd; s.cost -= costo; if (s.qty <= 1e-9) { s.qty = 0; s.cost = 0; }
-      out.push({id:o.id, fecha:o.fecha, cliente:o.nombre_completo, tipo:'VENTA', moneda:md, qty:qd, precio:valor / qd, costo:prom, gan, valor});
-    }
-  }
+  let M;
+  try { M = await cargarMotor(); } catch (er) { return toast(errMsg(er), true); }
   const d0 = new Date($('#gDesde').value + 'T00:00:00'), d1 = new Date(($('#gHasta').value || isoLocal(new Date())) + 'T23:59:59.999');
-  gRows = out.filter(r => { const f = new Date(r.fecha); return f >= d0 && f <= d1; });
-  const total = gRows.reduce((t, r) => t + (r.gan || 0), 0);
-  const porMon = {};
-  gRows.forEach(r => { const p = porMon[r.moneda] ||= {cq:0, cv:0, vq:0, vv:0, gan:0}; if (r.tipo === 'COMPRA') { p.cq += r.qty; p.cv += r.valor; } else { p.vq += r.qty; p.vv += r.valor; p.gan += r.gan; } });
-  const gs = n => (n < 0 ? '−' : '') + 'Gs. ' + Math.abs(Math.round(n)).toLocaleString('es-PY');
-  $('#gKpi').innerHTML = `<div class="card kpi" style="grid-column:span 2"><span class="mut">Ganancia del período</span><div class="big num ${total >= 0 ? 'p' : 'c'}" style="text-align:left;margin-top:6px">${esc(gs(total))}</div><div class="s"><span>${gRows.filter(r => r.tipo === 'VENTA').length} ventas · ${gRows.filter(r => r.tipo === 'COMPRA').length} compras de divisas</span></div></div>` +
-    ordenar(Object.entries(porMon).map(([codigo, p]) => ({codigo, ...p}))).map(p => { const st = inv[p.codigo]; return `<div class="card kpi"><div class="h"><span class="cur">${esc(p.codigo)}</span><div><b>${esc(mon(p.codigo).nombre)}</b></div></div>
-      <div class="v num ${p.gan >= 0 ? 'p' : 'c'}" style="text-align:left">${esc(gs(p.gan))}</div>
+  gRows = M.rows.filter(r => { const f = new Date(r.fecha); return f >= d0 && f <= d1; });
+  const total = gRows.reduce((t, r) => t + (r.gan || 0), 0), porMon = {};
+  gRows.forEach(r => { const p = porMon[r.moneda] ||= {cq:0, vq:0, gan:0}; if (r.tipo === 'COMPRA') p.cq += r.qty; else { p.vq += r.qty; p.gan += r.gan; } });
+  const mostr = gRows.filter(r => r.src === 'MOSTRADOR' && r.gan != null).reduce((t, r) => t + r.gan, 0);
+  $('#gKpi').innerHTML = `<div class="card kpi" style="grid-column:span 2"><span class="mut">Ganancia del período</span><div class="big num ${total >= 0 ? 'p' : 'c'}" style="text-align:left;margin-top:6px">${esc(gsF(total))}</div><div class="s"><span>Mostrador ${esc(gsF(mostr))} · Cruces de clientes ${esc(gsF(total - mostr))}</span></div><div class="s" style="margin-top:2px"><span>${gRows.filter(r => r.tipo === 'VENTA').length} ventas · ${gRows.filter(r => r.tipo === 'COMPRA').length} compras</span></div></div>` +
+    ordenar(Object.entries(porMon).map(([codigo, p]) => ({codigo, ...p}))).map(p => { const st = M.inv[p.codigo]; return `<div class="card kpi"><div class="h"><span class="cur">${esc(p.codigo)}</span><div><b>${esc(mon(p.codigo).nombre)}</b></div></div>
+      <div class="v num ${p.gan >= 0 ? 'p' : 'c'}" style="text-align:left">${esc(gsF(p.gan))}</div>
       <div class="s"><span>Compró ${esc(fmtN(p.cq, p.codigo))} · vendió ${esc(fmtN(p.vq, p.codigo))}</span></div>
       <div class="s" style="margin-top:2px"><span>Stock ${esc(fmtN(st ? st.qty : 0, p.codigo))}${st && st.qty ? ` · costo prom. ${esc(fmtT(+(st.cost / st.qty).toFixed(2)))}` : ''}</span></div></div>`; }).join('');
-  $('#gNota').textContent = sinDato ? `${sinDato} cruce(s) entre monedas extranjeras sin cotización cargada no se incluyeron` : 'Las ventas sin stock previo usan la cotización de compra del día como costo';
-  $('#gTab').innerHTML = `<thead><tr><th>Fecha</th><th>Recibo</th><th>Cliente</th><th>Operación</th><th class="num">Cantidad</th><th class="num">Precio (Gs.)</th><th class="num">Costo prom.</th><th class="num">Ganancia</th></tr></thead><tbody>` +
-    (gRows.length ? gRows.slice().reverse().map(r => `<tr><td class="mut nw">${esc(fecha(r.fecha))}</td><td class="nw"><a href="#" data-rec="${Number(r.id)}">${nRec(r.id)}</a></td><td>${esc(r.cliente)}</td>
+  $('#gNota').textContent = M.sinDato ? `${M.sinDato} cruce(s) entre monedas extranjeras sin cotización no se incluyeron` : 'Las ventas sin stock previo usan la cotización de compra del día como costo';
+  $('#gTab').innerHTML = `<thead><tr><th>Fecha</th><th>Comprobante</th><th>Cliente</th><th>Operación</th><th class="num">Cantidad</th><th class="num">Precio (Gs.)</th><th class="num">Costo prom.</th><th class="num">Ganancia</th></tr></thead><tbody>` +
+    (gRows.length ? gRows.slice().reverse().map(r => `<tr><td class="mut nw">${esc(fecha(r.fecha))}</td><td class="nw">${r.src === 'CRUCE' ? `<a href="#" data-rec="${Number(r.id)}">${nRec(r.id)}</a>` : `<a href="#" data-tk="${Number(r.id)}">${nCv(r.id)}</a>`}<div class="mut">${r.src === 'CRUCE' ? 'cruce de cliente' : 'mostrador'}</div></td><td>${esc(r.cliente) || '<span class="mut">—</span>'}</td>
       <td><span class="badge ${r.tipo === 'COMPRA' ? 'b' : 'g'}">${r.tipo === 'COMPRA' ? 'Compra' : 'Venta'}</span> ${esc(r.moneda)}</td><td class="num">${esc(fmtN(r.qty, r.moneda))}</td><td class="num">${esc(fmtT(+r.precio.toFixed(2)))}</td>
-      <td class="num mut">${r.costo == null ? '—' : esc(fmtT(+r.costo.toFixed(2)))}</td><td class="num ${r.gan == null ? '' : r.gan >= 0 ? 'p' : 'c'}"><b>${r.gan == null ? '' : esc(gs(r.gan))}</b></td></tr>`).join('')
-     : '<tr><td colspan="8" class="empty">Sin cruces de moneda en este período.</td></tr>') + '</tbody>';
+      <td class="num mut">${r.costo == null ? '—' : esc(fmtT(+r.costo.toFixed(2)))}</td><td class="num ${r.gan == null ? '' : r.gan >= 0 ? 'p' : 'c'}"><b>${r.gan == null ? '' : esc(gsF(r.gan))}</b></td></tr>`).join('')
+     : '<tr><td colspan="8" class="empty">Sin compras ni ventas en este período.</td></tr>') + '</tbody>';
 }
-$('#gXls').onclick = () => exportarXls(gRows.map(r => ({Fecha: fecha(r.fecha), Recibo: nRec(r.id), Cliente: r.cliente, Operacion: r.tipo, Moneda: r.moneda, Cantidad: r.qty, 'Precio Gs': Math.round(r.precio * 100) / 100, 'Costo promedio': r.costo == null ? '' : Math.round(r.costo * 100) / 100, 'Ganancia Gs': r.gan == null ? '' : Math.round(r.gan)})), `ganancias_${$('#gDesde').value}_${$('#gHasta').value}`);
+$('#gXls').onclick = () => exportarXls(gRows.map(r => ({Fecha: fecha(r.fecha), Comprobante: r.src === 'CRUCE' ? nRec(r.id) : nCv(r.id), Origen: r.src === 'CRUCE' ? 'Cruce de cliente' : 'Mostrador', Cliente: r.cliente, Operacion: r.tipo, Moneda: r.moneda, Cantidad: r.qty, 'Precio Gs': Math.round(r.precio * 100) / 100, 'Costo promedio': r.costo == null ? '' : Math.round(r.costo * 100) / 100, 'Ganancia Gs': r.gan == null ? '' : Math.round(r.gan)})), `ganancias_${$('#gDesde').value}_${$('#gHasta').value}`);
+
+// ===== COMPRA / VENTA DE DIVISAS =====
+let cvTipo = 'COMPRA', cvM = null, cvCotManual = false, cvRows = [];
+document.querySelectorAll('[data-cvt]').forEach(b => b.onclick = () => { cvTipo = b.dataset.cvt; document.querySelectorAll('[data-cvt]').forEach(x => x.classList.toggle('on', x === b)); cvCotManual = false; cvCalc(); });
+$('#fCv').addEventListener('input', e => { if (e.target.id === 'cvCot') cvCotManual = true; if (e.target.id === 'cvMon') cvCotManual = false; cvCalc(); });
+function cvCalc() {
+  if (!monedas.length) return;
+  const m = $('#cvMon').value, c = cotiz[m], lado = cvTipo === 'COMPRA' ? 'compra' : 'venta';
+  if (!cvCotManual) $('#cvCot').value = c ? fmtT(c[lado]) : '';
+  $('#cvHint').textContent = c ? `Cotización del día: compra ${fmtGs(c.compra)} · venta ${fmtGs(c.venta)}` : 'Sin cotización cargada para esta moneda: ingrésela manualmente.';
+  $('#cvOk').textContent = cvTipo === 'COMPRA' ? 'Registrar compra' : 'Registrar venta';
+  const q = round(parseNum($('#cvQty').value, m), m), t = parseNum($('#cvCot').value), tot = q > 0 && t > 0 ? Math.round(q * t) : 0;
+  const st = cvM && cvM.inv[m] || {qty:0, cost:0}, prom = st.qty > 0 ? st.cost / st.qty : (c ? Number(c.compra) : null);
+  let extra = `<div class="s mut" style="margin-top:8px">Stock actual ${esc(fmtN(st.qty, m))} ${esc(m)}${st.qty ? ` · costo promedio ${esc(fmtT(+(st.cost / st.qty).toFixed(2)))}` : ''}</div>`;
+  if (cvTipo === 'VENTA' && tot && prom) {
+    const g = tot - prom * q;
+    extra += `<div style="margin-top:8px;font-size:15px">Ganancia estimada: <b style="color:${g >= 0 ? '#7ee2b8' : '#ff9aa0'}">${esc(gsF(g))}</b></div>`;
+    if (q > st.qty) extra += `<div class="mut" style="margin-top:4px;color:#ffd58a">Vende más de lo que hay en stock (${esc(fmtN(st.qty, m))}).</div>`;
+  }
+  $('#cvTot').innerHTML = `<span class="mut">${cvTipo === 'COMPRA' ? 'La casa paga al cliente' : 'La casa cobra al cliente'}</span><div class="big num" style="text-align:left">${esc(fmtGs(tot))}</div>${q > 0 ? `<div class="mut">${esc(fmtN(q, m))} ${esc(m)} × ${esc(fmtT(t || 0))}</div>` : ''}${extra}`;
+}
+async function verCompraVenta() {
+  if (!$('#cvMon').options.length) $('#cvMon').innerHTML = monedas.filter(m => m.codigo !== 'PYG').map(m => `<option value="${esc(m.codigo)}">${esc(m.codigo)} · ${esc(m.nombre)}</option>`).join('');
+  if (!$('#cvFecha').value) $('#cvFecha').value = isoLocal(new Date());
+  cvCalc();
+  try { cvM = await cargarMotor(); } catch (er) { return toast(errMsg(er), true); }
+  cvCalc();
+  const conStock = ordenar(Object.entries(cvM.inv).filter(([, v]) => v.qty > 0).map(([codigo, v]) => ({codigo, ...v})));
+  $('#cvStock').innerHTML = conStock.length ? conStock.map(v => `<div class="row"><span class="cur">${esc(v.codigo)}</span><div><b class="num">${esc(fmtN(v.qty, v.codigo))}</b><div class="mut">costo prom. ${esc(fmtT(+(v.cost / v.qty).toFixed(2)))}</div></div><div class="num"><b>${esc(fmtGs(v.cost))}</b><div class="mut">valor a costo</div></div></div>`).join('') : '<p class="mut" style="margin:0">Sin stock. Registre una compra para empezar.</p>';
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const rh = cvM.rows.filter(r => r.src === 'MOSTRADOR' && new Date(r.fecha) >= hoy);
+  const gh = rh.reduce((t, r) => t + (r.gan || 0), 0), cp = rh.filter(r => r.tipo === 'COMPRA').reduce((t, r) => t + r.valor, 0), vt = rh.filter(r => r.tipo === 'VENTA').reduce((t, r) => t + r.valor, 0);
+  $('#cvDia').innerHTML = `<div class="ec" style="border:0;padding:0"><dl><dt>Compras (${rh.filter(r => r.tipo === 'COMPRA').length})</dt><dd>${esc(fmtGs(cp))}</dd><dt>Ventas (${rh.filter(r => r.tipo === 'VENTA').length})</dt><dd>${esc(fmtGs(vt))}</dd></dl>
+    <div class="tot"><span class="mut">Ganancia de hoy</span><b class="num ${gh >= 0 ? 'p' : 'c'}">${esc(gsF(gh))}</b></div></div>`;
+  pintarCvTab();
+}
+$('#cvFecha').onchange = pintarCvTab;
+function pintarCvTab() {
+  if (!cvM) return;
+  const f = $('#cvFecha').value, gan = {};
+  cvM.rows.filter(r => r.src === 'MOSTRADOR').forEach(r => gan[r.id] = r.gan);
+  cvRows = cvM.cams.filter(c => isoLocal(new Date(c.fecha)) === f).reverse();
+  $('#cvTab').innerHTML = `<thead><tr><th>Comprobante</th><th>Hora</th><th>Operación</th><th class="num">Cantidad</th><th class="num">Cotización</th><th class="num">Total</th><th class="num">Ganancia</th><th>Cliente</th><th>Usuario</th><th></th></tr></thead><tbody>` +
+    (cvRows.length ? cvRows.map(c => { const g = gan[c.id]; return `<tr class="${c.anulada ? 'anul' : ''}"><td class="nw"><b class="tx">${nCv(c.id)}</b>${c.anulada ? ' <span class="badge r">anulada</span>' : ''}</td><td class="mut nw">${esc(new Date(c.fecha).toLocaleTimeString('es-PY', {hour:'2-digit', minute:'2-digit'}))}</td>
+      <td><span class="badge ${c.tipo === 'COMPRA' ? 'b' : 'g'}">${c.tipo === 'COMPRA' ? 'Compra' : 'Venta'}</span> ${esc(c.moneda_codigo)}</td><td class="num"><span class="tx">${esc(fmtN(c.cantidad, c.moneda_codigo))}</span></td><td class="num">${esc(fmtT(c.cotizacion))}</td><td class="num"><span class="tx">${esc(fmtGs(c.total_gs))}</span></td>
+      <td class="num ${g == null ? '' : g >= 0 ? 'p' : 'c'}">${c.anulada || g == null ? '' : `<b>${esc(gsF(g))}</b>`}</td><td>${esc(c.cliente_nombre) || '<span class="mut">—</span>'}</td><td class="mut">${esc(usr(c.usuario_registro))}</td>
+      <td class="num nw"><button class="sm" data-tk="${Number(c.id)}">Ticket</button>${esSup() && !c.anulada ? ` <button class="sm danger" data-acv="${Number(c.id)}">Anular</button>` : ''}</td></tr>`; }).join('')
+     : '<tr><td colspan="10" class="empty">Sin operaciones ese día.</td></tr>') + '</tbody>';
+  $('#cvTab').querySelectorAll('[data-acv]').forEach(b => b.onclick = () => dlgAnularCambio(cvRows.find(c => c.id === Number(b.dataset.acv))));
+}
+$('#cvXls').onclick = () => { if (!cvM) return; const gan = {}; cvM.rows.filter(r => r.src === 'MOSTRADOR').forEach(r => gan[r.id] = r.gan); exportarXls(cvRows.map(c => ({Comprobante: nCv(c.id), Fecha: fecha(c.fecha), Operacion: c.tipo, Moneda: c.moneda_codigo, Cantidad: Number(c.cantidad), Cotizacion: Number(c.cotizacion), 'Total Gs': Number(c.total_gs), 'Ganancia Gs': c.anulada || gan[c.id] == null ? '' : Math.round(gan[c.id]), Cliente: c.cliente_nombre || '', Documento: c.cliente_doc || '', Pago: c.metodo_pago, Usuario: usr(c.usuario_registro), Anulada: c.anulada ? 'SÍ' : ''})), `compra_venta_${$('#cvFecha').value}`); };
+$('#fCv').onsubmit = async e => {
+  e.preventDefault();
+  const m = $('#cvMon').value, q = parseNum($('#cvQty').value, m), t = parseNum($('#cvCot').value);
+  if (!(q > 0)) return toast('Ingrese la cantidad', true);
+  if (!(t > 0)) return toast('Ingrese la cotización', true);
+  const b = $('#cvOk'); b.disabled = true;
+  try {
+    const id = await q_(sb.rpc('api_registrar_cambio', {p_tipo: cvTipo, p_moneda: m, p_cantidad: q, p_cotizacion: t, p_cliente_nombre: $('#cvCli').value, p_cliente_doc: $('#cvDoc').value, p_metodo: $('#cvMet').value, p_concepto: $('#cvCon').value}));
+    ['#cvQty', '#cvCli', '#cvDoc', '#cvCon'].forEach(k => $(k).value = ''); cvCotManual = false;
+    await verCompraVenta();
+    const r = cvM.rows.find(x => x.src === 'MOSTRADOR' && x.id === id);
+    dlg.classList.remove('wide');
+    dlg.innerHTML = `<form method="dialog" style="text-align:center"><div class="okbig">${ico('ok')}</div><h2>${cvTipo === 'COMPRA' ? 'Compra registrada' : 'Venta registrada'}</h2><p class="mut">Comprobante ${nCv(id)}</p>
+      ${r && r.gan != null ? `<p style="font-size:16px">Ganancia de esta venta: <b class="${r.gan >= 0 ? 'p' : 'c'}">${esc(gsF(r.gan))}</b></p>` : ''}
+      <div class="dact" style="justify-content:center"><button value="x">Cerrar</button><button class="pri" type="button" id="tkNow">Imprimir ticket</button></div></form>`;
+    $('#tkNow').onclick = () => { dlg.close(); ticketCambio(id); };
+    dlg.showModal();
+  } catch (er) { toast(errMsg(er), true); } finally { b.disabled = false; }
+};
+const q_ = q;
+function dlgAnularCambio(c) {
+  if (!c) return;
+  abrirDlg(`<h2>Anular ${nCv(c.id)}</h2><div class="prev">${c.tipo === 'COMPRA' ? 'Compra' : 'Venta'} de <b>${esc(fmtN(c.cantidad, c.moneda_codigo))} ${esc(c.moneda_codigo)}</b> a ${esc(fmtT(c.cotizacion))} = <b>${esc(fmtGs(c.total_gs))}</b></div>
+    <p class="mut">El stock y las ganancias se recalculan sin esta operación. Queda registrada como anulada.</p>
+    <label for="acvMot">Motivo</label><textarea id="acvMot" required maxlength="300"></textarea>`,
+  async () => { await q(sb.rpc('api_anular_cambio', {p_id: c.id, p_motivo: $('#acvMot').value})); toast(nCv(c.id) + ' anulada'); verCompraVenta(); }, null, 'Anular operación');
+}
+async function ticketCambio(id) {
+  try {
+    const c = (await q(sb.from('cambios').select('*').eq('id', id)))[0];
+    if (!c) throw new Error('Operación no encontrada');
+    const compra = c.tipo === 'COMPRA';
+    const cuerpo = copia => `<div class="rec">${c.anulada ? '<div class="wm">ANULADO</div>' : ''}
+      <div class="rhead">${encabezado()}<div style="text-align:right"><b>${compra ? 'COMPRA DE DIVISAS' : 'VENTA DE DIVISAS'}</b><div style="font-size:18px;font-weight:700">${nCv(c.id)}</div><div>${esc(fecha(c.fecha))}</div></div></div>
+      <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px"><div><b>Cliente:</b> ${esc(c.cliente_nombre || 'Consumidor final')}${c.cliente_doc ? '<br><b>Documento:</b> ' + esc(c.cliente_doc) : ''}</div><div style="text-align:right"><b>${copia}</b><br>Atendió: ${esc(usr(c.usuario_registro))}</div></div>
+      <table><thead><tr><th>Descripción</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Cotización</th><th style="text-align:right">Total</th></tr></thead><tbody>
+      <tr><td>${compra ? 'La casa compra' : 'La casa vende'} ${esc(mon(c.moneda_codigo).nombre)} (${esc(c.moneda_codigo)})</td><td style="text-align:right">${esc(mon(c.moneda_codigo).simbolo)} ${esc(fmtN(c.cantidad, c.moneda_codigo))}</td><td style="text-align:right">Gs. ${esc(fmtT(c.cotizacion))}</td><td style="text-align:right"><b>${esc(fmtGs(c.total_gs))}</b></td></tr></tbody></table>
+      <p><b>${compra ? 'Entregado al cliente' : 'Recibido del cliente'}:</b> ${esc(fmtGs(c.total_gs))} · ${esc(c.metodo_pago)}${c.concepto ? ' · ' + esc(c.concepto) : ''}</p>
+      <div class="firmas"><div>Firma del cliente</div><div>Firma y sello de caja</div></div>
+      ${casa.pie_recibo ? `<p style="text-align:center;font-size:10px;margin:10px 0 0">${esc(casa.pie_recibo)}</p>` : ''}</div>`;
+    imprimir(cuerpo('ORIGINAL · CLIENTE') + '<div class="cut">✂ cortar aquí</div>' + cuerpo('COPIA · CASA'));
+  } catch (er) { toast(errMsg(er), true); }
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-tk]'); if (t) { e.preventDefault(); ticketCambio(Number(t.dataset.tk)); } });
 
 // ===== MANTENIMIENTO =====
 $('#btnDemo').onclick = () => abrirDlg(`<h2>Cargar datos de demostración</h2>
